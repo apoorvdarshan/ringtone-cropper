@@ -7,6 +7,8 @@ const MIN_LEN = 1, MAX_LEN = 40;
 const $ = (id) => document.getElementById(id);
 
 const stage = $("stage"), track = $("track"), canvas = $("wave"), sel = $("sel"), head = $("head");
+const closeup = $("closeup"), zoom = $("zoom"), zhead = $("zhead"), ticksEl = $("ticks"), scaleEl = $("scale"), beam = $("beam");
+const nameEl = $("name");
 const playBtn = $("play"), loopBtn = $("loop"), editor = $("editor");
 const statusEl = $("status"), progressEl = $("progress"), busyEl = $("busy");
 const presetButtons = [...document.querySelectorAll("#presets button")];
@@ -15,7 +17,7 @@ const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
 let file = null, fsName = null, fileCount = 0, buffer = null, duration = 0;
 let clipStart = 0, clipLen = 29.9;
-let peaks = null, ghostPeaks = null, grow = 1;
+let peaks = null, ghostPeaks = null, zoomGhost = null, grow = 1, songTop = 1;
 let actx = null, source = null, playStartedAt = 0, playFrom = 0, playPos = null, raf = 0, loop = false;
 let ffmpeg = null, ffmpegLoading = null, onEncoderBytes = null, onEncoderLog = null, exporting = false;
 
@@ -33,6 +35,10 @@ const toneName = (name) => {
     .replace(/\s{2,}/g, " ").trim();
   return (tidy || baseName(name)).slice(0, 60);
 };
+// The name typed in "Ringtone name", made safe for a file name. It is what the iPhone lists.
+const ringtoneName = () => (nameEl.value.trim() || toneName(file.name)).replace(/[\/\\:*?"<>|]+/g, "-").slice(0, 60);
+const syncName = () => { $("toneName").textContent = file ? ringtoneName() : "Your song"; };
+nameEl.addEventListener("input", syncName);
 
 // ---------- ffmpeg (lazy) ----------
 async function fetchBlobURL(url, type, onBytes) {
@@ -99,7 +105,9 @@ async function openFile(f) {
   clipStart = loudestStart(clipLen);
 
   $("fname").textContent = f.name;
-  $("toneName").textContent = `${toneName(f.name)} (ringtone)`;
+  nameEl.value = toneName(f.name);
+  nameEl.disabled = false;
+  syncName();
   $("total").textContent = fmtShort(duration);
   stage.classList.remove("is-empty");
   editor.classList.remove("is-locked");
@@ -109,6 +117,7 @@ async function openFile(f) {
   busyEl.hidden = true;
 
   computePeaks();
+  zoomCache.key = "";
   update();
   growIn();
   loadFFmpeg().catch(() => {}); // warm up the encoder for saving
@@ -129,7 +138,10 @@ function openFailed(e) {
     editor.classList.add("is-locked");
     $("swap").hidden = true;
     sel.hidden = true;
-    draw();
+    nameEl.value = "";
+    nameEl.disabled = true;
+    syncName();
+    render();
   }
   setStatus("That file couldn’t be opened. Try an mp3, m4a, wav or a video with sound.", "err");
   stage.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -181,7 +193,7 @@ function readColors() {
   for (const k of ["bar", "bar-off", "bar-ghost", "trim"]) colors[k] = cs.getPropertyValue(`--${k}`).trim();
 }
 readColors();
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { readColors(); draw(); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { readColors(); render(); });
 
 function barCount() { return Math.max(40, Math.floor(track.clientWidth / BAR_STEP)); }
 
@@ -201,20 +213,24 @@ function computePeaks() {
     peaks[x] = max;
     if (max > top) top = max;
   }
-  for (let x = 0; x < n; x++) peaks[x] = Math.pow(peaks[x] / (top || 1), 0.8);
+  songTop = top || 1;
+  for (let x = 0; x < n; x++) peaks[x] = Math.pow(peaks[x] / songTop, 0.8);
 }
 
 // A made-up waveform for the empty state, so the editor reads as an editor before a song is chosen.
-function computeGhost() {
-  const n = barCount();
-  ghostPeaks = new Float32Array(n);
-  let seed = 7;
+function ghost(n, seed) {
+  const out = new Float32Array(n);
   const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   for (let x = 0; x < n; x++) {
     const t = x / n;
     const shape = 0.35 + 0.4 * Math.sin(t * Math.PI) + 0.2 * Math.sin(t * 19);
-    ghostPeaks[x] = clamp(shape * (0.55 + 0.45 * rand()), 0.06, 1);
+    out[x] = clamp(shape * (0.55 + 0.45 * rand()), 0.06, 1);
   }
+  return out;
+}
+function computeGhost() {
+  ghostPeaks = ghost(barCount(), 7);
+  zoomGhost = ghost(Math.max(30, Math.floor(zoomWidth() / ZBAR)), 11);
 }
 
 function draw() {
@@ -251,12 +267,153 @@ function draw() {
   ctx.globalAlpha = 1;
 }
 
+// ---------- close-up: the clip drawn large, with its fades ----------
+const ZBAR = 4; // CSS px per bar in the close-up
+const ZPAD = 10; // inner side padding of the close-up
+const zoomWidth = () => closeup.clientWidth;
+const zoomCache = { key: "", bars: null, max: 1 };
+// Fade and level as drawn; they ease toward the switches so a change shows what it does.
+const envNow = { fi: 1, fo: 1, norm: 0 };
+let envRaf = 0;
+const envTarget = () => ({ fi: +$("fadeIn").checked, fo: +$("fadeOut").checked, norm: +$("norm").checked });
+
+function zoomBars(n) {
+  const key = `${clipStart}|${clipLen}|${n}`;
+  if (zoomCache.key === key) return zoomCache;
+  const ch0 = buffer.getChannelData(0);
+  const ch1 = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : ch0;
+  const rate = buffer.sampleRate, s0 = clipStart * rate, per = (clipLen * rate) / n;
+  const stride = Math.max(1, Math.floor(per / 400));
+  const bars = new Float32Array(n), rms = new Float32Array(n);
+  let max = 0;
+  for (let i = 0; i < n; i++) {
+    let m = 0, sum = 0, count = 0;
+    for (let j = Math.floor(s0 + i * per), end = Math.min(Math.floor(s0 + (i + 1) * per), ch0.length); j < end; j += stride) {
+      const v = Math.max(Math.abs(ch0[j]), Math.abs(ch1[j]));
+      if (v > m) m = v;
+      sum += v * v;
+      count++;
+    }
+    bars[i] = m;
+    rms[i] = count ? Math.sqrt(sum / count) : 0;
+    if (m > max) max = m;
+  }
+  Object.assign(zoomCache, { key, bars, rms, max: max || 1 });
+  return zoomCache;
+}
+
+function drawZoom() {
+  const dpr = window.devicePixelRatio || 1;
+  const w = zoomWidth(), h = closeup.clientHeight;
+  if (zoom.width !== Math.round(w * dpr) || zoom.height !== Math.round(h * dpr)) {
+    zoom.width = Math.round(w * dpr);
+    zoom.height = Math.round(h * dpr);
+  }
+  const ctx = zoom.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  const inner = w - ZPAD * 2, n = Math.max(30, Math.floor(inner / ZBAR));
+  const step = inner / n, bw = Math.max(1.5, step * 0.55), maxH = h - 28;
+
+  if (!buffer) {
+    if (!zoomGhost || zoomGhost.length !== n) zoomGhost = ghost(n, 11);
+    ctx.fillStyle = colors["bar-ghost"];
+    for (let i = 0; i < n; i++) {
+      ctx.globalAlpha = 0.25 + 0.75 * Math.min(1, Math.abs(i / n - 0.5) * 2.6);
+      const bh = Math.max(2, zoomGhost[i] * maxH * 0.8);
+      bar(ctx, ZPAD + i * step + (step - bw) / 2, (h - bh) / 2, bw, bh);
+    }
+    ctx.globalAlpha = 1;
+    return;
+  }
+
+  const { bars, rms, max } = zoomBars(n);
+  const denom = songTop + (max - songTop) * envNow.norm;
+  const fiD = Math.min(0.5, clipLen / 4), foD = Math.min(1.5, clipLen / 4);
+  const played = playPos != null ? playPos - clipStart : -1;
+  for (let i = 0; i < n; i++) {
+    const t = ((i + 0.5) / n) * clipLen;
+    const gIn = 1 - envNow.fi * (1 - Math.min(1, t / fiD));
+    const gOut = 1 - envNow.fo * (1 - Math.min(1, (clipLen - t) / foD));
+    let g = 1;
+    if (grow < 1) g = clamp(grow * 1.6 - (i / n) * 0.6, 0, 1), g = 1 - Math.pow(1 - g, 3);
+    // Like a mixing desk: the peak as a faint outline, the average loudness solid inside it.
+    const k = gIn * gOut * maxH * g;
+    const ph = Math.max(2, Math.pow(Math.min(1, bars[i] / denom), 0.8) * k);
+    const rh = Math.max(2, Math.min(ph, Math.pow(Math.min(1, (rms[i] * 1.8) / denom), 0.8) * k));
+    const x = ZPAD + i * step + (step - bw) / 2;
+    ctx.fillStyle = t <= played ? colors.trim : colors.bar;
+    ctx.globalAlpha = 0.32;
+    bar(ctx, x, (h - ph) / 2, bw, ph);
+    ctx.globalAlpha = 1;
+    bar(ctx, x, (h - rh) / 2, bw, rh);
+  }
+}
+
+function bar(ctx, x, y, w, h) {
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, w, h, w / 2);
+  else ctx.rect(x, y, w, h);
+  ctx.fill();
+}
+
+function animateEnvelope() {
+  const target = envTarget(), from = { ...envNow };
+  cancelAnimationFrame(envRaf);
+  if (reduceMotion.matches) { Object.assign(envNow, target); render(); return; }
+  const t0 = performance.now();
+  const frame = (t) => {
+    const k = Math.min(1, (t - t0) / 240), e = 1 - Math.pow(1 - k, 3);
+    for (const key in target) envNow[key] = from[key] + (target[key] - from[key]) * e;
+    render();
+    if (k < 1) envRaf = requestAnimationFrame(frame);
+  };
+  envRaf = requestAnimationFrame(frame);
+}
+for (const id of ["fadeIn", "fadeOut", "norm"]) $(id).addEventListener("change", animateEnvelope);
+
+// The frame's edges, projected down onto the close-up so it reads as a magnified view.
+function drawBeam() {
+  if (!duration) { beam.removeAttribute("d"); return; }
+  const w = scaleEl.clientWidth, h = scaleEl.clientHeight;
+  const a = (clipStart / duration) * w, b = ((clipStart + clipLen) / duration) * w;
+  beam.setAttribute("d", `M${a} 0 L${b} 0 L${w} ${h} L0 ${h} Z`);
+}
+
+// Time labels under the close-up, spaced so they never crowd.
+let ticksKey = "";
+function drawTicks() {
+  if (!duration) { ticksEl.textContent = ""; ticksKey = ""; return; }
+  const w = zoomWidth() - ZPAD * 2, pxPerSec = w / clipLen;
+  const stepSec = [1, 2, 5, 10].find((s) => s * pxPerSec >= 64) || 10;
+  const key = `${clipStart}|${clipLen}|${w}|${stepSec}`;
+  if (key === ticksKey) return;
+  ticksKey = key;
+  const frag = document.createDocumentFragment();
+  for (let t = Math.ceil(clipStart / stepSec) * stepSec; t <= clipStart + clipLen + 1e-6; t += stepSec) {
+    const x = ZPAD + ((t - clipStart) / clipLen) * w;
+    if (x < 16 || x > zoomWidth() - 16) continue;
+    const span = document.createElement("span");
+    span.style.left = `${x}px`;
+    span.textContent = fmtShort(t);
+    frag.append(span);
+  }
+  ticksEl.replaceChildren(frag);
+}
+
+function render() {
+  draw();
+  drawZoom();
+  drawBeam();
+  drawTicks();
+}
+
 function growIn() {
-  if (reduceMotion.matches) { grow = 1; draw(); return; }
+  if (reduceMotion.matches) { grow = 1; render(); return; }
   const t0 = performance.now();
   const frame = (t) => {
     grow = Math.min(1, (t - t0) / 700);
-    draw();
+    render();
     if (grow < 1) requestAnimationFrame(frame);
   };
   grow = 0;
@@ -264,12 +421,14 @@ function growIn() {
 }
 
 let resizeTimer = 0;
-new ResizeObserver(() => {
+const onResize = new ResizeObserver(() => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => { if (buffer) computePeaks(); else computeGhost(); draw(); }, 60);
-}).observe(track);
+  resizeTimer = setTimeout(() => { if (buffer) computePeaks(); else computeGhost(); ticksKey = ""; render(); }, 60);
+});
+onResize.observe(track);
+onResize.observe(closeup);
 computeGhost();
-draw();
+render();
 
 // ---------- selection ----------
 function update() {
@@ -284,7 +443,7 @@ function update() {
   sel.setAttribute("aria-valuenow", clipStart.toFixed(1));
   sel.setAttribute("aria-valuetext", `Starts at ${fmt(clipStart)}, ${clipLen.toFixed(1)} seconds long`);
   presetButtons.forEach((b) => b.setAttribute("aria-pressed", String(Math.abs(parseFloat(b.dataset.d) - clipLen) < 0.05)));
-  draw();
+  render();
 }
 
 function moveBy(delta) {
@@ -340,6 +499,41 @@ const endDrag = () => {
 track.addEventListener("pointerup", endDrag);
 track.addEventListener("pointercancel", endDrag);
 
+// Drag the close-up like a filmstrip to fine-tune where the clip starts.
+let zdrag = null, wheelAcc = 0;
+closeup.addEventListener("pointerdown", (e) => {
+  if (!duration || e.button > 0) return;
+  zdrag = { x: e.clientX, start: clipStart, w: zoomWidth() - ZPAD * 2 };
+  try { closeup.setPointerCapture(e.pointerId); } catch {}
+  stage.classList.add("zooming");
+  e.preventDefault();
+});
+closeup.addEventListener("pointermove", (e) => {
+  if (!zdrag) return;
+  clipStart = zdrag.start - ((e.clientX - zdrag.x) / zdrag.w) * clipLen;
+  update();
+});
+const endZoomDrag = () => {
+  if (!zdrag) return;
+  zdrag = null;
+  stage.classList.remove("zooming");
+  if (source) play();
+};
+closeup.addEventListener("pointerup", endZoomDrag);
+closeup.addEventListener("pointercancel", endZoomDrag);
+// A sideways trackpad swipe over the close-up nudges the clip; vertical scrolling still scrolls the page.
+closeup.addEventListener("wheel", (e) => {
+  if (!duration || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+  e.preventDefault();
+  wheelAcc += (e.deltaX / (zoomWidth() - ZPAD * 2)) * clipLen;
+  if (Math.abs(wheelAcc) >= 0.1) {
+    const d = Math.trunc(wheelAcc * 10) / 10;
+    wheelAcc -= d;
+    clipStart += d;
+    update();
+  }
+}, { passive: false });
+
 document.addEventListener("keydown", (e) => {
   if (!buffer || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.target.closest("input, button, a, label, select, textarea")) return;
@@ -372,10 +566,12 @@ function play() {
   playBtn.classList.add("playing");
   playBtn.setAttribute("aria-label", "Stop");
   head.hidden = false;
+  zhead.hidden = false;
   const tick = () => {
     playPos = playFrom + (actx.currentTime - playStartedAt);
     head.style.left = (playPos / duration) * 100 + "%";
-    draw();
+    zhead.style.left = `${ZPAD + ((playPos - clipStart) / clipLen) * (zoomWidth() - ZPAD * 2)}px`;
+    render();
     raf = requestAnimationFrame(tick);
   };
   tick();
@@ -388,7 +584,8 @@ function stop(keepUi) {
   playBtn.classList.remove("playing");
   playBtn.setAttribute("aria-label", "Play clip");
   head.hidden = true;
-  draw();
+  zhead.hidden = true;
+  render();
 }
 playBtn.onclick = () => (source ? stop() : play());
 loopBtn.onclick = () => { loop = !loop; loopBtn.setAttribute("aria-pressed", String(loop)); };
@@ -448,7 +645,7 @@ async function exportAs(key, btn) {
     await ff.deleteFile(out);
 
     const blob = new Blob([data.buffer], { type: FORMATS[key].mime });
-    const name = `${toneName(file.name)} (ringtone).${key}`;
+    const name = `${ringtoneName()}.${key}`;
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = name;

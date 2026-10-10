@@ -27,9 +27,11 @@
 <main>
   <section class="intro">
     <h1>Make a ringtone from any&nbsp;song.</h1>
-    <p>Pick the part you want, up to 40 seconds, and save it as an .m4r for your iPhone. It all happens in this tab, so your music is never uploaded.</p>
+    <p>Pick up to 40 seconds and save it as an iPhone ringtone. Your music never leaves this tab.</p>
   </section>
 
+  <div class="workspace">
+  <div class="main-col">
   <section id="stage" class="stage is-empty" aria-label="Clip editor">
     <div class="stage-top">
       <p class="song" id="fname">No song chosen</p>
@@ -41,6 +43,7 @@
       <p class="meta" id="meta">29.9 seconds</p>
     </div>
 
+    <div class="area" id="area">
     <div class="wrap" id="wrap">
       <div class="track" id="track">
         <canvas id="wave" aria-hidden="true"></canvas>
@@ -50,14 +53,22 @@
         </div>
         <div id="head" hidden></div>
       </div>
+    </div>
+    <div class="scale" id="scale" aria-hidden="true"><svg><path class="beam" id="beam"/></svg><span>0:00</span><span id="total"></span></div>
+
+    <div class="closeup" id="closeup">
+      <canvas id="zoom" aria-hidden="true"></canvas>
+      <div class="zhead" id="zhead" hidden></div>
       <div class="drop" id="drop">
         <button class="drop-btn" id="choose" type="button">Choose a song</button>
         <span class="drop-hint">or drop an audio or video file here</span>
       </div>
+    </div>
+    <div class="ticks" id="ticks" aria-hidden="true"></div>
+
       <input type="file" id="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.aac,.flac,.ogg,.opus,.webm,.mov,.mp4" hidden>
       <p class="busy" id="busy" role="status" hidden></p>
     </div>
-    <div class="scale" aria-hidden="true"><span>0:00</span><span id="total"></span></div>
 
     <div class="transport" id="transport">
       <button id="play" class="play" aria-label="Play clip" disabled>
@@ -80,9 +91,18 @@
     </div>
   </section>
 
-  <p class="hint">Drag the yellow frame to move it, or drag its ends to change the length. It starts on the loudest stretch of the song, which is usually the chorus.<span class="keys"> Arrow keys move it by 0.1&nbsp;s (<kbd>Shift</kbd> for 1&nbsp;s) and <kbd>Space</kbd> plays.</span></p>
+  <p class="hint">Drag the frame to move it, or its ends to resize. Drag the close-up to fine-tune.<span class="keys">Keyboard: <kbd>←</kbd> <kbd>→</kbd> nudge by 0.1&nbsp;s (<kbd>Shift</kbd> for 1&nbsp;s), <kbd>Space</kbd> plays.</span></p>
+  </div>
 
-  <div class="panels is-locked" id="editor">
+  <div class="rail is-locked" id="editor">
+    <section class="group">
+      <h2 class="group-h"><label for="name">Ringtone name</label></h2>
+      <div class="list">
+        <div class="row field"><input id="name" type="text" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Choose a song first" disabled></div>
+      </div>
+      <p class="foot">Shown in your iPhone’s ringtone list.</p>
+    </section>
+
     <section class="group">
       <h2 class="group-h">Sound</h2>
       <div class="list">
@@ -90,11 +110,10 @@
         <label class="row"><span>Fade out</span><span class="switch"><input type="checkbox" id="fadeOut" checked><i></i></span></label>
         <label class="row"><span>Even out volume</span><span class="switch"><input type="checkbox" id="norm"><i></i></span></label>
       </div>
-      <p class="foot">Fades ease the first half second in and the last second and a half out. Even out volume brings a very quiet or very loud song to a normal phone level.</p>
+      <p class="foot">Even out volume brings a very quiet or very loud song to a normal phone level.</p>
     </section>
 
-    <section class="group">
-      <h2 class="group-h">Save</h2>
+    <section class="group save">
       <button class="save-main dl" data-f="m4r" disabled><span class="lbl">Save ringtone</span><span class="ext">.m4r</span></button>
       <div class="others">
         <span>Other formats</span>
@@ -105,6 +124,7 @@
       <div class="progress" id="progress" hidden><i></i></div>
       <p class="status" id="status" role="status" aria-live="polite"></p>
     </section>
+  </div>
   </div>
 
   <section class="install" id="install">
