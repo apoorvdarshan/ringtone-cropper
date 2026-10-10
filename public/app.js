@@ -6,10 +6,10 @@ const CORE_WASM_BYTES = 32.1e6; // uncompressed ffmpeg-core.wasm, for the downlo
 const MIN_LEN = 1, MAX_LEN = 40;
 const $ = (id) => document.getElementById(id);
 
-const stage = $("stage"), dial = $("dial"), ring = $("ring"), editor = $("editor"), pick = $("pick");
-const closeup = $("closeup"), zoom = $("zoom"), zhead = $("zhead"), ticksEl = $("ticks");
-const nameEl = $("name"), clockEl = $("clock"), untilEl = $("until");
-const playBtn = $("play"), loopBtn = $("loop");
+const stage = $("stage"), track = $("track"), canvas = $("wave"), sel = $("sel"), head = $("head");
+const closeup = $("closeup"), zoom = $("zoom"), zhead = $("zhead"), ticksEl = $("ticks"), scaleEl = $("scale"), beam = $("beam");
+const nameEl = $("name");
+const playBtn = $("play"), loopBtn = $("loop"), editor = $("editor");
 const statusEl = $("status"), progressEl = $("progress"), busyEl = $("busy");
 const presetButtons = [...document.querySelectorAll("#presets button")];
 const exportButtons = [...document.querySelectorAll(".dl")];
@@ -17,7 +17,7 @@ const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
 let file = null, fsName = null, fileCount = 0, buffer = null, duration = 0;
 let clipStart = 0, clipLen = 29.9;
-let ringLevels = null, ringGhost = null, zoomGhost = null, grow = 1, songTop = 1;
+let peaks = null, ghostPeaks = null, zoomGhost = null, grow = 1, songTop = 1;
 let actx = null, source = null, playStartedAt = 0, playFrom = 0, playPos = null, raf = 0, loop = false;
 let ffmpeg = null, ffmpegLoading = null, onEncoderBytes = null, onEncoderLog = null, exporting = false;
 
@@ -36,7 +36,7 @@ const toneName = (name) => {
   return (tidy || baseName(name)).slice(0, 60);
 };
 // The name typed in "Ringtone name", made safe for a file name. It is what the iPhone lists.
-const ringtoneName = () => (nameEl.value.trim() || toneName(file.name)).replace(/[/\\:*?"<>|]+/g, "-").slice(0, 60);
+const ringtoneName = () => (nameEl.value.trim() || toneName(file.name)).replace(/[\/\\:*?"<>|]+/g, "-").slice(0, 60);
 const syncName = () => { $("toneName").textContent = file ? ringtoneName() : "Your song"; };
 nameEl.addEventListener("input", syncName);
 
@@ -83,7 +83,8 @@ async function openFile(f) {
   if (ffmpeg?.loaded && fsName) ffmpeg.deleteFile(fsName).catch(() => {});
   file = f;
   fsName = `src${++fileCount}${ext(f.name)}`;
-  buffer = null; duration = 0; ringLevels = null;
+  buffer = null; duration = 0; peaks = null;
+  sel.hidden = true;
   setStatus("");
   showBusy(`Reading “${f.name}”…`);
   if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
@@ -105,15 +106,17 @@ async function openFile(f) {
 
   $("fname").textContent = f.name;
   nameEl.value = toneName(f.name);
+  nameEl.disabled = false;
   syncName();
+  $("total").textContent = fmtShort(duration);
   stage.classList.remove("is-empty");
-  pick.hidden = true;
-  editor.hidden = false;
-  document.querySelectorAll("#transport button").forEach((b) => (b.disabled = false));
-  playBtn.disabled = false;
+  editor.classList.remove("is-locked");
+  $("swap").hidden = false;
+  sel.hidden = false;
+  document.querySelectorAll("#transport button, .dl").forEach((b) => (b.disabled = false));
   busyEl.hidden = true;
 
-  computeRing();
+  computePeaks();
   zoomCache.key = "";
   update();
   growIn();
@@ -130,29 +133,32 @@ function openFailed(e) {
   busyEl.hidden = true;
   if (!buffer) {
     file = null;
+    $("fname").textContent = "No song chosen";
     stage.classList.add("is-empty");
-    pick.hidden = false;
-    editor.hidden = true;
+    editor.classList.add("is-locked");
+    $("swap").hidden = true;
+    sel.hidden = true;
+    nameEl.value = "";
+    nameEl.disabled = true;
     syncName();
-    showFace();
     render();
   }
-  const msg = "That file couldn’t be opened. Try an mp3, m4a, wav or a video with sound.";
-  if (editor.hidden) { untilEl.textContent = msg; } else setStatus(msg, "err");
+  setStatus("That file couldn’t be opened. Try an mp3, m4a, wav or a video with sound.", "err");
+  stage.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
 const fileEl = $("file");
 fileEl.onchange = () => { const f = fileEl.files[0]; fileEl.value = ""; if (f) openFile(f).catch(openFailed); };
-$("choose").onclick = () => fileEl.click();
+$("drop").onclick = () => fileEl.click();
 $("swap").onclick = () => fileEl.click();
 let dragDepth = 0;
-window.addEventListener("dragenter", (e) => { e.preventDefault(); dragDepth++; document.body.classList.add("over"); });
+window.addEventListener("dragenter", (e) => { e.preventDefault(); dragDepth++; stage.classList.add("over"); });
 window.addEventListener("dragover", (e) => e.preventDefault());
-window.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove("over"); } });
+window.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; stage.classList.remove("over"); } });
 window.addEventListener("drop", (e) => {
   e.preventDefault();
   dragDepth = 0;
-  document.body.classList.remove("over");
+  stage.classList.remove("over");
   const f = e.dataTransfer.files[0];
   if (f) openFile(f).catch(openFailed);
 });
@@ -179,23 +185,24 @@ function loudestStart(len) {
   return clamp(bestAt, 0, Math.max(0, duration - len));
 }
 
-// ---------- the ring: the whole song wrapped around a circle ----------
-const RING_BARS = 200;
-// Ring geometry as fractions of the dial's size.
-const R = 0.37, HALF = 0.06, TRACK = 0.465;
+// ---------- waveform ----------
+const BAR_STEP = 5; // CSS px per bar, including the gap
 let colors = {};
 function readColors() {
   const cs = getComputedStyle(document.documentElement);
-  for (const k of ["bar", "bar-off", "bar-ghost", "green", "bg"]) colors[k] = cs.getPropertyValue(`--${k}`).trim();
+  for (const k of ["bar", "bar-off", "bar-ghost", "trim"]) colors[k] = cs.getPropertyValue(`--${k}`).trim();
 }
 readColors();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { readColors(); render(); });
 
-function computeRing() {
-  const n = RING_BARS;
+function barCount() { return Math.max(40, Math.floor(track.clientWidth / BAR_STEP)); }
+
+function computePeaks() {
+  const n = barCount();
   const ch0 = buffer.getChannelData(0);
   const ch1 = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : ch0;
   const step = Math.max(1, Math.floor(ch0.length / n));
-  ringLevels = new Float32Array(n);
+  peaks = new Float32Array(n);
   let top = 0;
   for (let x = 0; x < n; x++) {
     let max = 0;
@@ -203,14 +210,14 @@ function computeRing() {
       const v = Math.max(Math.abs(ch0[i]), Math.abs(ch1[i]));
       if (v > max) max = v;
     }
-    ringLevels[x] = max;
+    peaks[x] = max;
     if (max > top) top = max;
   }
   songTop = top || 1;
-  for (let x = 0; x < n; x++) ringLevels[x] = Math.pow(ringLevels[x] / songTop, 0.8);
+  for (let x = 0; x < n; x++) peaks[x] = Math.pow(peaks[x] / songTop, 0.8);
 }
 
-// A made-up waveform for the empty state, so the ring reads as one before a song is chosen.
+// A made-up waveform for the empty state, so the editor reads as an editor before a song is chosen.
 function ghost(n, seed) {
   const out = new Float32Array(n);
   const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
@@ -221,86 +228,50 @@ function ghost(n, seed) {
   }
   return out;
 }
-ringGhost = ghost(RING_BARS, 7);
+function computeGhost() {
+  ghostPeaks = ghost(barCount(), 7);
+  zoomGhost = ghost(Math.max(30, Math.floor(zoomWidth() / ZBAR)), 11);
+}
 
-const angleAt = (t) => -Math.PI / 2 + (t / duration) * Math.PI * 2;
-
-function drawRing() {
+function draw() {
   const dpr = window.devicePixelRatio || 1;
-  const S = dial.clientWidth;
-  if (!S) return;
-  if (ring.width !== Math.round(S * dpr)) { ring.width = Math.round(S * dpr); ring.height = Math.round(S * dpr); }
-  const ctx = ring.getContext("2d");
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, S, S);
-  const c = S / 2, r = S * R, half = S * HALF, rt = S * TRACK;
-  const n = RING_BARS, bw = Math.max(1.6, ((Math.PI * 2 * r) / n) * 0.42);
-
-  // A quiet track around the outside; the clip is the green stretch of it.
-  ctx.beginPath();
-  ctx.arc(c, c, rt, 0, Math.PI * 2);
-  ctx.strokeStyle = colors["bar-ghost"];
-  ctx.lineWidth = 4;
-  ctx.stroke();
-  if (buffer) {
-    ctx.beginPath();
-    ctx.arc(c, c, rt, angleAt(clipStart), angleAt(clipStart + clipLen));
-    ctx.strokeStyle = colors.green;
-    ctx.lineCap = "round";
-    ctx.stroke();
+  const w = track.clientWidth, h = track.clientHeight;
+  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
   }
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
 
-  const data = ringLevels || ringGhost;
-  ctx.lineCap = "round";
-  ctx.lineWidth = bw;
+  const data = peaks || ghostPeaks;
+  if (!data) return;
+  const n = data.length, step = w / n, bw = Math.max(1.5, step * 0.58);
+  const a = duration ? (clipStart / duration) * w : -1;
+  const b = duration ? ((clipStart + clipLen) / duration) * w : -1;
+  const played = playPos != null && duration ? (playPos / duration) * w : -1;
+
   for (let i = 0; i < n; i++) {
-    const t = ((i + 0.5) / n) * (duration || 1);
-    const a = -Math.PI / 2 + ((i + 0.5) / n) * Math.PI * 2;
+    const x = i * step + (step - bw) / 2, cx = x + bw / 2;
     let g = 1;
     if (grow < 1) g = clamp(grow * 1.6 - (i / n) * 0.6, 0, 1), g = 1 - Math.pow(1 - g, 3);
-    const len = Math.max(1, data[i] * half * g);
-    const inClip = buffer && t >= clipStart && t <= clipStart + clipLen;
-    ctx.strokeStyle = !buffer ? colors["bar-ghost"]
-      : inClip && playPos != null && t <= playPos ? colors.green
-      : inClip ? colors.bar : colors["bar-off"];
-    const cos = Math.cos(a), sin = Math.sin(a);
+    const bh = Math.max(2, data[i] * h * 0.86 * g);
+    if (!peaks) { ctx.fillStyle = colors["bar-ghost"]; ctx.globalAlpha = 0.35 + 0.65 * Math.min(1, Math.abs(i / n - 0.5) * 3); }
+    else if (cx >= a && cx <= b) ctx.fillStyle = cx <= played ? colors.trim : colors.bar;
+    else ctx.fillStyle = colors["bar-off"];
     ctx.beginPath();
-    ctx.moveTo(c + cos * (r - len), c + sin * (r - len));
-    ctx.lineTo(c + cos * (r + len), c + sin * (r + len));
-    ctx.stroke();
+    if (ctx.roundRect) ctx.roundRect(x, (h - bh) / 2, bw, bh, bw / 2);
+    else ctx.rect(x, (h - bh) / 2, bw, bh);
+    ctx.fill();
   }
-
-  // Handles at both ends of the clip.
-  if (buffer) {
-    for (const t of [clipStart, clipStart + clipLen]) {
-      const a = angleAt(t), x = c + Math.cos(a) * rt, y = c + Math.sin(a) * rt;
-      ctx.beginPath();
-      ctx.arc(x, y, 11, 0, Math.PI * 2);
-      ctx.fillStyle = colors.bar;
-      ctx.shadowColor = "rgba(0, 0, 0, .35)";
-      ctx.shadowBlur = 8;
-      ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = colors.green;
-      ctx.stroke();
-    }
-    // Where the preview is now, as a dot running along the track.
-    if (playPos != null) {
-      const a = angleAt(playPos);
-      ctx.beginPath();
-      ctx.arc(c + Math.cos(a) * rt, c + Math.sin(a) * rt, 5, 0, Math.PI * 2);
-      ctx.fillStyle = colors.bar;
-      ctx.fill();
-    }
-  }
+  ctx.globalAlpha = 1;
 }
 
 // ---------- close-up: the clip drawn large, with its fades ----------
 const ZBAR = 4; // CSS px per bar in the close-up
-const ZPAD = 14; // inner side padding of the close-up
+const ZPAD = 10; // inner side padding of the close-up
 const zoomWidth = () => closeup.clientWidth;
-const zoomCache = { key: "", bars: null, rms: null, max: 1 };
+const zoomCache = { key: "", bars: null, max: 1 };
 // Fade and level as drawn; they ease toward the switches so a change shows what it does.
 const envNow = { fi: 1, fo: 1, norm: 0 };
 let envRaf = 0;
@@ -331,17 +302,9 @@ function zoomBars(n) {
   return zoomCache;
 }
 
-function bar(ctx, x, y, w, h) {
-  ctx.beginPath();
-  if (ctx.roundRect) ctx.roundRect(x, y, w, h, w / 2);
-  else ctx.rect(x, y, w, h);
-  ctx.fill();
-}
-
 function drawZoom() {
   const dpr = window.devicePixelRatio || 1;
   const w = zoomWidth(), h = closeup.clientHeight;
-  if (!w) return;
   if (zoom.width !== Math.round(w * dpr) || zoom.height !== Math.round(h * dpr)) {
     zoom.width = Math.round(w * dpr);
     zoom.height = Math.round(h * dpr);
@@ -350,15 +313,17 @@ function drawZoom() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
   const inner = w - ZPAD * 2, n = Math.max(30, Math.floor(inner / ZBAR));
-  const step = inner / n, bw = Math.max(1.5, step * 0.55), maxH = h - 24;
+  const step = inner / n, bw = Math.max(1.5, step * 0.55), maxH = h - 28;
 
   if (!buffer) {
     if (!zoomGhost || zoomGhost.length !== n) zoomGhost = ghost(n, 11);
     ctx.fillStyle = colors["bar-ghost"];
     for (let i = 0; i < n; i++) {
+      ctx.globalAlpha = 0.25 + 0.75 * Math.min(1, Math.abs(i / n - 0.5) * 2.6);
       const bh = Math.max(2, zoomGhost[i] * maxH * 0.8);
       bar(ctx, ZPAD + i * step + (step - bw) / 2, (h - bh) / 2, bw, bh);
     }
+    ctx.globalAlpha = 1;
     return;
   }
 
@@ -372,17 +337,24 @@ function drawZoom() {
     const gOut = 1 - envNow.fo * (1 - Math.min(1, (clipLen - t) / foD));
     let g = 1;
     if (grow < 1) g = clamp(grow * 1.6 - (i / n) * 0.6, 0, 1), g = 1 - Math.pow(1 - g, 3);
-    // The peak as a faint outline, the average loudness solid inside it.
+    // Like a mixing desk: the peak as a faint outline, the average loudness solid inside it.
     const k = gIn * gOut * maxH * g;
     const ph = Math.max(2, Math.pow(Math.min(1, bars[i] / denom), 0.8) * k);
     const rh = Math.max(2, Math.min(ph, Math.pow(Math.min(1, (rms[i] * 1.8) / denom), 0.8) * k));
     const x = ZPAD + i * step + (step - bw) / 2;
-    ctx.fillStyle = t <= played ? colors.green : colors.bar;
-    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = t <= played ? colors.trim : colors.bar;
+    ctx.globalAlpha = 0.32;
     bar(ctx, x, (h - ph) / 2, bw, ph);
     ctx.globalAlpha = 1;
     bar(ctx, x, (h - rh) / 2, bw, rh);
   }
+}
+
+function bar(ctx, x, y, w, h) {
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, w, h, w / 2);
+  else ctx.rect(x, y, w, h);
+  ctx.fill();
 }
 
 function animateEnvelope() {
@@ -400,6 +372,14 @@ function animateEnvelope() {
 }
 for (const id of ["fadeIn", "fadeOut", "norm"]) $(id).addEventListener("change", animateEnvelope);
 
+// The frame's edges, projected down onto the close-up so it reads as a magnified view.
+function drawBeam() {
+  if (!duration) { beam.removeAttribute("d"); return; }
+  const w = scaleEl.clientWidth, h = scaleEl.clientHeight;
+  const a = (clipStart / duration) * w, b = ((clipStart + clipLen) / duration) * w;
+  beam.setAttribute("d", `M${a} 0 L${b} 0 L${w} ${h} L0 ${h} Z`);
+}
+
 // Time labels under the close-up, spaced so they never crowd.
 let ticksKey = "";
 function drawTicks() {
@@ -412,7 +392,7 @@ function drawTicks() {
   const frag = document.createDocumentFragment();
   for (let t = Math.ceil(clipStart / stepSec) * stepSec; t <= clipStart + clipLen + 1e-6; t += stepSec) {
     const x = ZPAD + ((t - clipStart) / clipLen) * w;
-    if (x < 18 || x > zoomWidth() - 18) continue;
+    if (x < 16 || x > zoomWidth() - 16) continue;
     const span = document.createElement("span");
     span.style.left = `${x}px`;
     span.textContent = fmtShort(t);
@@ -422,17 +402,17 @@ function drawTicks() {
 }
 
 function render() {
-  drawRing();
+  draw();
   drawZoom();
+  drawBeam();
   drawTicks();
 }
 
-// One orchestrated moment: the song draws itself around the ring when it opens.
 function growIn() {
   if (reduceMotion.matches) { grow = 1; render(); return; }
   const t0 = performance.now();
   const frame = (t) => {
-    grow = Math.min(1, (t - t0) / 900);
+    grow = Math.min(1, (t - t0) / 700);
     render();
     if (grow < 1) requestAnimationFrame(frame);
   };
@@ -443,30 +423,25 @@ function growIn() {
 let resizeTimer = 0;
 const onResize = new ResizeObserver(() => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => { ticksKey = ""; render(); }, 40);
+  resizeTimer = setTimeout(() => { if (buffer) computePeaks(); else computeGhost(); ticksKey = ""; render(); }, 60);
 });
-onResize.observe(dial);
+onResize.observe(track);
 onResize.observe(closeup);
+computeGhost();
+render();
 
 // ---------- selection ----------
-function showFace() {
-  if (!duration) {
-    clockEl.textContent = "0:00.0";
-    untilEl.textContent = "Your song goes here";
-    return;
-  }
-  clockEl.textContent = fmt(clipStart);
-  untilEl.textContent = `until ${fmt(clipStart + clipLen)}`;
-}
-
 function update() {
   if (!duration) return;
   clipLen = round1(clamp(clipLen, Math.min(MIN_LEN, duration), Math.min(MAX_LEN, duration)));
   clipStart = round1(clamp(clipStart, 0, Math.max(0, duration - clipLen)));
-  showFace();
-  dial.setAttribute("aria-valuemax", Math.max(0, duration - clipLen).toFixed(1));
-  dial.setAttribute("aria-valuenow", clipStart.toFixed(1));
-  dial.setAttribute("aria-valuetext", `Starts at ${fmt(clipStart)}, ${clipLen.toFixed(1)} seconds long`);
+  sel.style.left = (clipStart / duration) * 100 + "%";
+  sel.style.width = (clipLen / duration) * 100 + "%";
+  $("range").textContent = `${fmt(clipStart)} – ${fmt(clipStart + clipLen)}`;
+  $("meta").textContent = `${clipLen.toFixed(1)} seconds of a ${fmtShort(duration)} song`;
+  sel.setAttribute("aria-valuemax", Math.max(0, duration - clipLen).toFixed(1));
+  sel.setAttribute("aria-valuenow", clipStart.toFixed(1));
+  sel.setAttribute("aria-valuetext", `Starts at ${fmt(clipStart)}, ${clipLen.toFixed(1)} seconds long`);
   presetButtons.forEach((b) => b.setAttribute("aria-pressed", String(Math.abs(parseFloat(b.dataset.d) - clipLen) < 0.05)));
   render();
 }
@@ -487,61 +462,42 @@ presetButtons.forEach((b) => (b.onclick = () => {
 }));
 document.querySelectorAll("[data-n]").forEach((b) => (b.onclick = () => moveBy(parseFloat(b.dataset.n))));
 
-// Drag around the ring to move the clip, drag a handle to resize it, or tap the ring to center it there.
-const TAU = Math.PI * 2;
-const wrapAngle = (a) => ((a + Math.PI) % TAU + TAU) % TAU - Math.PI;
-function polar(e) {
-  const r = dial.getBoundingClientRect();
-  const x = e.clientX - r.left - r.width / 2, y = e.clientY - r.top - r.height / 2;
-  return { d: Math.hypot(x, y) / r.width, a: Math.atan2(y, x), size: r.width };
-}
-const timeAtAngle = (a) => (((a + Math.PI / 2) % TAU + TAU) % TAU) / TAU * duration;
-
-let rdrag = null;
-dial.addEventListener("pointerdown", (e) => {
-  if (!duration || e.button > 0 || e.target.closest("button")) return;
-  const { d, a, size } = polar(e);
-  if (d < R - HALF - 0.04 || d > TRACK + 0.04) return;
-  const t = timeAtAngle(a);
-  const tol = (18 / (TAU * R * size)) * duration; // 18 px along the ring, in seconds
-  const end = clipStart + clipLen;
-  if (Math.abs(t - clipStart) <= tol) rdrag = { mode: "l", raw: clipStart, end };
-  else if (Math.abs(t - end) <= tol) rdrag = { mode: "r", raw: end };
-  else {
-    if (t < clipStart || t > end) { clipStart = t - clipLen / 2; update(); }
-    rdrag = { mode: "move", raw: clipStart };
-  }
-  rdrag.last = a;
-  try { dial.setPointerCapture(e.pointerId); } catch {}
+// Drag the frame to move it, drag a handle to resize it, or tap elsewhere to center it there.
+let drag = null;
+const timeAt = (clientX) => {
+  const r = track.getBoundingClientRect();
+  return clamp((clientX - r.left) / r.width, 0, 1) * duration;
+};
+track.addEventListener("pointerdown", (e) => {
+  if (!duration || e.button > 0) return;
+  const t = timeAt(e.clientX);
+  const grip = e.target.closest(".grip")?.dataset.grip;
+  if (grip) drag = { mode: grip, end: clipStart + clipLen };
+  else if (t >= clipStart && t <= clipStart + clipLen) drag = { mode: "move", offset: t - clipStart };
+  else { drag = { mode: "move", offset: clipLen / 2 }; clipStart = t - clipLen / 2; update(); }
+  try { track.setPointerCapture(e.pointerId); } catch {}
   stage.classList.add("dragging");
+  sel.focus({ preventScroll: true });
   e.preventDefault();
 });
-dial.addEventListener("pointermove", (e) => {
-  if (!rdrag) return;
-  const { a } = polar(e);
-  const dt = (wrapAngle(a - rdrag.last) / TAU) * duration;
-  rdrag.last = a;
-  if (rdrag.mode === "move") {
-    rdrag.raw = clamp(rdrag.raw + dt, 0, Math.max(0, duration - clipLen));
-    clipStart = rdrag.raw;
-  } else if (rdrag.mode === "l") {
-    rdrag.raw = clamp(rdrag.raw + dt, Math.max(0, rdrag.end - MAX_LEN), rdrag.end - MIN_LEN);
-    clipStart = rdrag.raw;
-    clipLen = rdrag.end - rdrag.raw;
-  } else {
-    rdrag.raw = clamp(rdrag.raw + dt, clipStart + MIN_LEN, Math.min(duration, clipStart + MAX_LEN));
-    clipLen = rdrag.raw - clipStart;
-  }
+track.addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  const t = timeAt(e.clientX);
+  if (drag.mode === "move") clipStart = t - drag.offset;
+  else if (drag.mode === "l") {
+    clipStart = clamp(t, drag.end - MAX_LEN, drag.end - MIN_LEN);
+    clipLen = drag.end - clipStart;
+  } else clipLen = clamp(t - clipStart, MIN_LEN, Math.min(MAX_LEN, duration - clipStart));
   update();
 });
-const endRingDrag = () => {
-  if (!rdrag) return;
-  rdrag = null;
+const endDrag = () => {
+  if (!drag) return;
+  drag = null;
   stage.classList.remove("dragging");
   if (source) play();
 };
-dial.addEventListener("pointerup", endRingDrag);
-dial.addEventListener("pointercancel", endRingDrag);
+track.addEventListener("pointerup", endDrag);
+track.addEventListener("pointercancel", endDrag);
 
 // Drag the close-up like a filmstrip to fine-tune where the clip starts.
 let zdrag = null, wheelAcc = 0;
@@ -585,8 +541,8 @@ document.addEventListener("keydown", (e) => {
   else if (e.code === "ArrowLeft" || e.code === "ArrowRight") {
     e.preventDefault();
     moveBy((e.code === "ArrowLeft" ? -1 : 1) * (e.shiftKey ? 1 : 0.1));
-  } else if (e.code === "Home" && e.target === dial) { e.preventDefault(); clipStart = 0; update(); }
-  else if (e.code === "End" && e.target === dial) { e.preventDefault(); clipStart = duration; update(); }
+  } else if (e.code === "Home" && e.target === sel) { e.preventDefault(); clipStart = 0; update(); }
+  else if (e.code === "End" && e.target === sel) { e.preventDefault(); clipStart = duration; update(); }
 });
 
 // ---------- preview ----------
@@ -609,10 +565,11 @@ function play() {
   source.onended = () => (loop && source ? play() : stop());
   playBtn.classList.add("playing");
   playBtn.setAttribute("aria-label", "Stop");
-  dial.classList.add("ringing");
+  head.hidden = false;
   zhead.hidden = false;
   const tick = () => {
     playPos = playFrom + (actx.currentTime - playStartedAt);
+    head.style.left = (playPos / duration) * 100 + "%";
     zhead.style.left = `${ZPAD + ((playPos - clipStart) / clipLen) * (zoomWidth() - ZPAD * 2)}px`;
     render();
     raf = requestAnimationFrame(tick);
@@ -626,7 +583,7 @@ function stop(keepUi) {
   playPos = null;
   playBtn.classList.remove("playing");
   playBtn.setAttribute("aria-label", "Play clip");
-  dial.classList.remove("ringing");
+  head.hidden = true;
   zhead.hidden = true;
   render();
 }
@@ -744,6 +701,3 @@ tabs.forEach((t, i) => {
 const ua = navigator.userAgent;
 if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) selectTab($("tab-ios"));
 else if (/Windows/.test(ua)) selectTab($("tab-win"));
-
-showFace();
-render();
