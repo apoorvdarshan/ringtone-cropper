@@ -1,0 +1,6 @@
+{
+  "name": "ringtone-cropper",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "./public" },
+  "routes": [{ "pattern": "ringtone.apoorvdarshan.com", "custom_domain": true }]
+}
