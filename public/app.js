@@ -8,6 +8,11 @@ const drop = $("drop"), fileEl = $("file"), editor = $("editor");
 const startEl = $("start"), durEl = $("dur"), info = $("info"), status = $("status");
 const wrap = $("wrap"), sel = $("sel"), head = $("head"), canvas = $("wave");
 const playBtn = $("play"), loopBtn = $("loop");
+const phone = $("phone"), toneName = $("toneName"), toneProg = $("toneProg"), toneCur = $("toneCur"), toneLen = $("toneLen");
+
+// Live clock on the phone mockup
+const tickClock = () => { const d = new Date(); $("clock").textContent = `${d.getHours() % 12 || 12}:${String(d.getMinutes()).padStart(2, "0")}`; };
+tickClock(); setInterval(tickClock, 10000);
 
 let file = null, buffer = null, duration = 0;
 let actx = null, source = null, playStartedAt = 0, playOffset = 0, raf = 0, loop = false;
@@ -35,6 +40,7 @@ async function openFile(f) {
   stop();
   file = f;
   $("fname").textContent = f.name;
+  toneName.textContent = baseName(f.name);
   setStatus("Decoding audio…");
   editor.hidden = false;
   drop.classList.add("compact");
@@ -56,6 +62,7 @@ async function openFile(f) {
   drawWave();
   update();
   setStatus("");
+  editor.scrollIntoView({ behavior: "smooth", block: "start" });
   loadFFmpeg().catch(() => {}); // warm up for export
 }
 
@@ -105,7 +112,8 @@ function update() {
   if (clipStart() > max) startEl.value = max.toFixed(1);
   sel.style.left = (clipStart() / duration) * 100 + "%";
   sel.style.width = (clipLen() / duration) * 100 + "%";
-  info.textContent = `Start ${fmt(clipStart())}  ·  End ${fmt(clipStart() + clipLen())}  ·  Length ${clipLen().toFixed(1)}s  ·  Song ${fmt(duration)}`;
+  info.textContent = `${fmt(clipStart())} → ${fmt(clipStart() + clipLen())}  ·  ${clipLen().toFixed(1)}s of ${fmt(duration)}`;
+  toneLen.textContent = fmt(clipLen()).replace(/\.\d$/, "");
 }
 function setStart(s) {
   startEl.value = Math.min(Math.max(0, s), Math.max(0, duration - clipLen())).toFixed(1);
@@ -176,8 +184,12 @@ function play() {
   source.onended = () => { if (loop && source) play(); else stop(); };
   playBtn.textContent = "■ Stop";
   head.style.display = "block";
+  phone.classList.add("ringing");
   const tick = () => {
-    head.style.left = ((playOffset + actx.currentTime - playStartedAt) / duration) * 100 + "%";
+    const el = actx.currentTime - playStartedAt;
+    head.style.left = ((playOffset + el) / duration) * 100 + "%";
+    toneProg.style.width = Math.min(100, (el / len) * 100) + "%";
+    toneCur.textContent = fmt(Math.min(el, len)).replace(/\.\d$/, "");
     raf = requestAnimationFrame(tick);
   };
   tick();
@@ -185,9 +197,14 @@ function play() {
 function stop(keepUi) {
   if (source) { source.onended = null; try { source.stop(); } catch {} source = null; }
   cancelAnimationFrame(raf);
-  if (!keepUi) { playBtn.textContent = "▶ Preview"; head.style.display = "none"; }
+  if (!keepUi) {
+    playBtn.textContent = "▶ Preview"; head.style.display = "none";
+    phone.classList.remove("ringing"); toneProg.style.width = "0"; toneCur.textContent = "0:00";
+  }
 }
 playBtn.onclick = () => (source ? stop() : play());
+$("accept").onclick = () => (buffer ? play() : fileEl.click());
+$("decline").onclick = () => stop();
 loopBtn.onclick = () => { loop = !loop; loopBtn.textContent = `🔁 Loop: ${loop ? "on" : "off"}`; };
 
 // ---------- export ----------
