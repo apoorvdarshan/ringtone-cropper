@@ -3,123 +3,164 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Ringtone Cropper — Make iPhone Ringtones (.m4r) Free, In Your Browser</title>
-<meta name="description" content="Crop any song or audio file into a 30-second iPhone ringtone. Export .m4r, .m4a, .mp3 or .wav. Free, no upload — everything runs in your browser.">
-<meta property="og:title" content="Ringtone Cropper — iPhone ringtone maker">
-<meta property="og:description" content="Crop any audio into an iPhone ringtone (.m4r). Free and private — runs in your browser.">
-<meta name="theme-color" content="#0b0b0f">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔔</text></svg>">
+<title>Ringtone Cropper: make an iPhone ringtone from any song</title>
+<meta name="description" content="Pick the part of a song you want, up to 40 seconds, and save it as an iPhone ringtone (.m4r). Also saves .m4a, .mp3 and .wav. Runs in your browser, so nothing is uploaded.">
+<meta property="og:title" content="Ringtone Cropper">
+<meta property="og:description" content="Make an iPhone ringtone from any song, right in your browser.">
+<meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7.5'/><g fill='%23fff'><rect x='5' y='13' width='2' height='6' rx='1'/><rect x='9' y='11' width='2' height='10' rx='1'/><rect x='13' y='9' width='2' height='14' rx='1'/><rect x='17' y='7' width='2' height='18' rx='1'/><rect x='21' y='10' width='2' height='12' rx='1'/><rect x='25' y='12' width='2' height='8' rx='1'/></g><rect x='11' y='5' width='14' height='22' rx='2.5' fill='none' stroke='%23FFCC00' stroke-width='2'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+<header class="top">
+  <a class="brand" href="/">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7.5"/><g fill="#fff"><rect x="5" y="13" width="2" height="6" rx="1"/><rect x="9" y="11" width="2" height="10" rx="1"/><rect x="13" y="9" width="2" height="14" rx="1"/><rect x="17" y="7" width="2" height="18" rx="1"/><rect x="21" y="10" width="2" height="12" rx="1"/><rect x="25" y="12" width="2" height="8" rx="1"/></g><rect x="11" y="5" width="14" height="22" rx="2.5" fill="none" stroke="#FFCC00" stroke-width="2"/></svg>
+    Ringtone Cropper
+  </a>
+  <a class="gh" href="https://github.com/apoorvdarshan/ringtone-cropper">GitHub</a>
+</header>
+
 <main>
-  <header>
-    <h1>🔔 Ringtone Cropper</h1>
-    <p class="sub">Turn any song into an iPhone ringtone. Pick the best 30 seconds, export <b>.m4r</b>. Nothing is uploaded — it all runs in your browser.</p>
-  </header>
+  <section class="intro">
+    <h1>Make a ringtone from any&nbsp;song.</h1>
+    <p>Pick the part you want, up to 40 seconds, and save it as an .m4r for your iPhone. It all happens in this tab, so your music is never uploaded.</p>
+  </section>
 
-  <label id="drop" class="drop">
-    <input type="file" id="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.aac,.flac,.ogg,.opus,.webm,.mov,.mp4" hidden>
-    <div class="drop-inner">
-      <div class="big">Drop an audio or video file</div>
-      <div class="muted">or tap to choose · mp3, m4a, wav, flac, aac, ogg, mp4, mov…</div>
+  <section id="stage" class="stage is-empty" aria-label="Clip editor">
+    <div class="stage-top">
+      <p class="song" id="fname">No song chosen</p>
+      <button class="swap" id="swap" type="button" hidden>Choose another song</button>
     </div>
-  </label>
 
-  <section id="editor" hidden>
-    <div class="filename" id="fname"></div>
-    <div id="wrap">
-      <canvas id="wave"></canvas>
-      <div id="sel"><span class="grip l"></span><span class="grip r"></span></div>
-      <div id="head"></div>
+    <div class="readout" aria-live="off">
+      <p class="range" id="range">0:00.0 – 0:29.9</p>
+      <p class="meta" id="meta">29.9 seconds</p>
     </div>
-    <input type="range" id="start" min="0" step="0.1" value="0" aria-label="Clip start">
-    <div id="info" class="muted mono"></div>
 
-    <div class="controls">
-      <div class="group">
-        <span class="label">Preset</span>
-        <div class="seg" id="presets">
-          <button data-d="29.9" class="on">Ringtone 29.9s</button>
-          <button data-d="40">Max 40s</button>
-          <button data-d="15">Text tone 15s</button>
-          <button data-d="custom">Custom</button>
+    <div class="wrap" id="wrap">
+      <div class="track" id="track">
+        <canvas id="wave" aria-hidden="true"></canvas>
+        <div id="sel" role="slider" tabindex="0" aria-label="Clip position" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" hidden>
+          <span class="grip l" data-grip="l" aria-hidden="true"></span>
+          <span class="grip r" data-grip="r" aria-hidden="true"></span>
         </div>
-        <input type="number" id="dur" value="29.9" step="0.1" min="1" max="40" aria-label="Length in seconds">
+        <div id="head" hidden></div>
       </div>
-
-      <div class="group">
-        <span class="label">Fine tune</span>
-        <button class="sec" data-n="-1">−1s</button>
-        <button class="sec" data-n="-0.1">−0.1s</button>
-        <button class="sec" data-n="0.1">+0.1s</button>
-        <button class="sec" data-n="1">+1s</button>
+      <div class="drop" id="drop">
+        <button class="drop-btn" id="choose" type="button">Choose a song</button>
+        <span class="drop-hint">or drop an audio or video file here</span>
       </div>
-
-      <div class="group">
-        <label class="chk"><input type="checkbox" id="fadeIn" checked> Fade in</label>
-        <label class="chk"><input type="checkbox" id="fadeOut" checked> Fade out</label>
-        <label class="chk"><input type="checkbox" id="norm"> Normalize volume</label>
-      </div>
-
-      <div class="group">
-        <button id="play" class="primary">▶ Preview</button>
-        <button id="loop" class="sec">🔁 Loop: off</button>
-      </div>
+      <input type="file" id="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.aac,.flac,.ogg,.opus,.webm,.mov,.mp4" hidden>
+      <p class="busy" id="busy" role="status" hidden></p>
     </div>
+    <div class="scale" aria-hidden="true"><span>0:00</span><span id="total"></span></div>
 
-    <div class="export">
-      <span class="label">Download as</span>
-      <div class="exports">
-        <button class="dl primary" data-f="m4r"><b>.m4r</b><small>iPhone ringtone</small></button>
-        <button class="dl" data-f="m4a"><b>.m4a</b><small>AAC · Apple audio</small></button>
-        <button class="dl" data-f="mp3"><b>.mp3</b><small>Works everywhere</small></button>
-        <button class="dl" data-f="wav"><b>.wav</b><small>Lossless</small></button>
+    <div class="transport" id="transport">
+      <button id="play" class="play" aria-label="Play clip" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-play" d="M8 5.6v12.8a1 1 0 0 0 1.52.85l10.2-6.4a1 1 0 0 0 0-1.7L9.52 4.75A1 1 0 0 0 8 5.6z"/><rect class="i-stop" x="6.5" y="6.5" width="11" height="11" rx="2"/></svg>
+      </button>
+      <div class="seg" id="presets" role="group" aria-label="Clip length">
+        <button data-d="15" aria-pressed="false" disabled>15 s</button>
+        <button data-d="29.9" aria-pressed="true" disabled>29.9 s</button>
+        <button data-d="40" aria-pressed="false" disabled>40 s</button>
       </div>
-      <div id="status" class="muted"></div>
+      <div class="tools">
+        <div class="nudge" role="group" aria-label="Move the clip">
+          <button data-n="-0.1" aria-label="Move clip 0.1 seconds earlier" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6 8.5 12l6 6"/></svg></button>
+          <button data-n="0.1" aria-label="Move clip 0.1 seconds later" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 6 6 6-6 6"/></svg></button>
+        </div>
+        <button id="loop" class="loop" aria-pressed="false" aria-label="Repeat preview" title="Repeat preview" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11V9.5A3.5 3.5 0 0 1 7.5 6H18m-3-3 3 3-3 3M20 13v1.5a3.5 3.5 0 0 1-3.5 3.5H6m3 3-3-3 3-3"/></svg>
+        </button>
+      </div>
     </div>
   </section>
 
-  <section class="howto">
-    <h2>How to put the ringtone on your iPhone</h2>
-    <div class="cards">
-      <div class="card">
-        <h3>💻 From a Mac (easiest)</h3>
-        <ol>
-          <li>Download the <b>.m4r</b>.</li>
-          <li>Connect your iPhone and open it in <b>Finder</b>.</li>
-          <li>Drag the .m4r onto the iPhone window (General tab).</li>
-          <li>iPhone → Settings → Sounds &amp; Haptics → Ringtone.</li>
-        </ol>
-      </div>
-      <div class="card">
-        <h3>📱 On the iPhone only</h3>
-        <ol>
-          <li>Download the <b>.m4a</b> or <b>.mp3</b> — it saves to Files.</li>
-          <li>Open <b>GarageBand</b> → new Audio Recorder → loop icon → Files → drag the song in.</li>
-          <li>In My Songs, long-press the project → <b>Share → Ringtone</b> → Export.</li>
-          <li>Tap “Use sound as…” → Standard Ringtone.</li>
-        </ol>
-      </div>
-      <div class="card">
-        <h3>🪟 From Windows</h3>
-        <ol>
-          <li>Download the <b>.m4r</b>.</li>
-          <li>Open the <b>Apple Devices</b> app (or iTunes) with your iPhone connected.</li>
-          <li>Drag the .m4r into the device's <b>Tones</b> section.</li>
-          <li>Pick it in Settings → Sounds &amp; Haptics.</li>
-        </ol>
-      </div>
-    </div>
-    <p class="muted small">iPhone ringtones can be up to 40 seconds; alert/text tones up to 30. 29.9s is the safe default.</p>
-  </section>
+  <p class="hint">Drag the yellow frame to move it, or drag its ends to change the length. It starts on the loudest stretch of the song, which is usually the chorus.<span class="keys"> Arrow keys move it by 0.1&nbsp;s (<kbd>Shift</kbd> for 1&nbsp;s) and <kbd>Space</kbd> plays.</span></p>
 
-  <footer class="muted small">
-    100% client-side · your audio never leaves your device · only use audio you have the rights to ·
-    <a href="https://github.com/apoorvdarshan/ringtone-cropper">source</a> ·
-    made by <a href="https://apoorvdarshan.com">Apoorv Darshan</a>
-  </footer>
+  <div class="panels is-locked" id="editor">
+    <section class="group">
+      <h2 class="group-h">Sound</h2>
+      <div class="list">
+        <label class="row"><span>Fade in</span><span class="switch"><input type="checkbox" id="fadeIn" checked><i></i></span></label>
+        <label class="row"><span>Fade out</span><span class="switch"><input type="checkbox" id="fadeOut" checked><i></i></span></label>
+        <label class="row"><span>Even out volume</span><span class="switch"><input type="checkbox" id="norm"><i></i></span></label>
+      </div>
+      <p class="foot">Fades ease the first half second in and the last second and a half out. Even out volume brings a very quiet or very loud song to a normal phone level.</p>
+    </section>
+
+    <section class="group">
+      <h2 class="group-h">Save</h2>
+      <button class="save-main dl" data-f="m4r" disabled><span class="lbl">Save ringtone</span><span class="ext">.m4r</span></button>
+      <div class="others">
+        <span>Other formats</span>
+        <button class="dl" data-f="m4a" disabled>.m4a</button>
+        <button class="dl" data-f="mp3" disabled>.mp3</button>
+        <button class="dl" data-f="wav" disabled>.wav</button>
+      </div>
+      <div class="progress" id="progress" hidden><i></i></div>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+    </section>
+  </div>
+
+  <section class="install" id="install">
+    <h2>Add it to your iPhone</h2>
+    <div class="seg light" role="tablist" aria-label="Your computer">
+      <button role="tab" id="tab-mac" aria-controls="p-mac" aria-selected="true">With a Mac</button>
+      <button role="tab" id="tab-ios" aria-controls="p-ios" aria-selected="false" tabindex="-1">iPhone only</button>
+      <button role="tab" id="tab-win" aria-controls="p-win" aria-selected="false" tabindex="-1">With Windows</button>
+    </div>
+
+    <div class="install-body">
+      <div class="steps">
+        <ol role="tabpanel" id="p-mac" aria-labelledby="tab-mac">
+          <li>Save the ringtone as <b>.m4r</b>.</li>
+          <li>Connect your iPhone with a cable and select it in the Finder sidebar.</li>
+          <li>Drag the .m4r file onto the iPhone window. It copies over straight away.</li>
+          <li>On your iPhone, open Settings › Sounds &amp; Haptics › Ringtone and tap it.</li>
+        </ol>
+        <ol role="tabpanel" id="p-ios" aria-labelledby="tab-ios" hidden>
+          <li>Save it as <b>.m4a</b>. Safari puts it in the Files app, under Downloads.</li>
+          <li>Open GarageBand, start an Audio Recorder project and switch to the tracks view.</li>
+          <li>Tap the loop icon, choose Files, and drag your .m4a onto the timeline.</li>
+          <li>In My Songs, touch and hold the project, then tap Share › Ringtone › Export.</li>
+          <li>Tap “Use sound as…” and choose Standard Ringtone.</li>
+        </ol>
+        <ol role="tabpanel" id="p-win" aria-labelledby="tab-win" hidden>
+          <li>Save the ringtone as <b>.m4r</b>.</li>
+          <li>Open the Apple Devices app (or iTunes) and connect your iPhone.</li>
+          <li>Drag the .m4r onto your iPhone in the sidebar.</li>
+          <li>On your iPhone, open Settings › Sounds &amp; Haptics › Ringtone and tap it.</li>
+        </ol>
+        <p class="foot">Ringtones can be up to 40 seconds. Text tones and alerts stop at 30, so 29.9&nbsp;s works for both.</p>
+      </div>
+
+      <figure class="tones">
+        <div class="tones-nav" aria-hidden="true"><span class="back"><svg viewBox="0 0 24 24"><path d="M15 5.5 8.5 12l6.5 6.5"/></svg>Sounds &amp; Haptics</span></div>
+        <p class="tones-title" aria-hidden="true">Ringtone</p>
+        <p class="tones-h" aria-hidden="true">Ringtones</p>
+        <ul class="list" aria-hidden="true">
+          <li class="mine"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span id="toneName">Your song (ringtone)</span></li>
+          <li>Reflection (Default)</li>
+          <li>Apex</li>
+          <li>Beacon</li>
+          <li>Bulletin</li>
+          <li>By The Seaside</li>
+        </ul>
+        <figcaption>Once it’s on your phone, it sits at the top of Settings › Sounds &amp; Haptics › Ringtone.</figcaption>
+      </figure>
+    </div>
+  </section>
 </main>
+
+<footer class="bottom">
+  <p>Runs in your browser with <a href="https://github.com/ffmpegwasm/ffmpeg.wasm">ffmpeg.wasm</a>. Only use audio you have the rights to.</p>
+  <p><a href="https://github.com/apoorvdarshan/ringtone-cropper">Source on GitHub</a><span aria-hidden="true">  </span><a href="https://apoorvdarshan.com">Made by Apoorv Darshan</a></p>
+</footer>
 <script type="module" src="/app.js"></script>
 </body>
 </html>

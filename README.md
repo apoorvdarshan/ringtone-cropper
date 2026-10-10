@@ -5,7 +5,8 @@ Crop any song or audio/video file into an iPhone ringtone, right in the browser.
 **Live:** https://ringtone.apoorvdarshan.com
 
 - Drag-and-drop mp3, m4a, wav, flac, aac, ogg, mp4, mov…
-- Waveform with draggable 29.9s / 40s / 15s / custom selection, live preview + loop
+- iOS-style trim editor: drag the yellow frame or its ends (29.9s / 40s / 15s presets), live preview + repeat
+- Starts on the loudest stretch of the song, which is usually the chorus
 - Fade in/out, loudness normalization
 - Export **.m4r** (iPhone ringtone), .m4a, .mp3, .wav
 - 100% client-side via [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm) — audio never leaves your device
