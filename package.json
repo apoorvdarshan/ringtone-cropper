@@ -4,7 +4,8 @@
   "description": "Crop any audio into an iPhone ringtone (.m4r) in the browser",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "local": "node local/server.js"
   },
   "license": "ISC",
   "type": "commonjs",

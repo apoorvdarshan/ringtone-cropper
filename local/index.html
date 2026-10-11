@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ringtone Cropper</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">YOUR SOUND, YOUR CALL</p>
+    <h1>Ringtone Cropper</h1>
+    <p class="muted">Find your favorite moment. Make it your ringtone.</p>
+  </header>
+  <section class="card" aria-labelledby="source-heading">
+    <div class="section-heading"><span class="step">1</span><h2 id="source-heading">Add your audio</h2><span class="badge">Best available quality</span></div>
+    <form id="source-form">
+      <label for="source-type">Audio source</label>
+      <select id="source-type">
+        <option value="youtube">YouTube link</option>
+        <option value="upload">Upload audio file</option>
+      </select>
+      <div id="youtube-panel" class="source-panel">
+        <label for="youtube-url">YouTube video URL</label>
+        <div class="input-row">
+          <input type="url" id="youtube-url" placeholder="https://www.youtube.com/watch?v=…" required autocomplete="off">
+          <button type="submit" id="youtube-load">Extract audio</button>
+        </div>
+        <p class="hint">Downloads the best available audio stream. No extra lossy conversion.</p>
+      </div>
+      <div id="upload-panel" class="source-panel" hidden>
+        <label for="audio-file" id="drop-zone">
+          <span class="upload-icon" aria-hidden="true">↑</span>
+          <strong>Drop an audio file here</strong>
+          <span class="hint">or choose a file from your device</span>
+          <input type="file" id="audio-file" accept="audio/*,.mp3,.m4a,.aac,.wav,.flac,.ogg,.opus,.aiff,.aif,.webm,.mp4">
+        </label>
+        <p class="hint">MP3, M4A, WAV, FLAC, OGG and more. Original quality preserved.</p>
+      </div>
+      <p class="hint limits">Up to 100 MB · 20 minutes per source</p>
+    </form>
+    <div id="import-progress" class="progress" hidden><span></span></div>
+    <p id="source-status" role="status" aria-live="polite">Choose a YouTube link or upload an audio file.</p>
+  </section>
+  <section class="card" aria-labelledby="crop-heading" id="cropper">
+    <div class="section-heading"><span class="step">2</span><h2 id="crop-heading">Pick your moment</h2></div>
+    <p id="track-title">No audio loaded</p>
+    <p id="track-quality" class="hint">Your waveform will appear here.</p>
+    <div id="wrap" aria-label="Audio waveform. Use the clip start slider to adjust the selection.">
+      <canvas id="wave" aria-hidden="true"></canvas>
+      <div id="empty-wave">Add audio to start cropping</div>
+      <div id="sel" hidden></div><div id="head" hidden></div>
+    </div>
+    <fieldset id="clip-controls" disabled>
+      <label for="start" class="slider-label">Clip start <span id="start-time">0:00.0</span></label>
+      <input type="range" id="start" min="0" max="0" step="0.1" value="0">
+      <p id="info" class="hint">Select a clip up to 40 seconds long.</p>
+      <div class="row adjustments">
+        <label for="dur">Length (s) <input type="number" id="dur" value="29.9" step="0.1" min="1" max="40"></label>
+        <div class="nudge"><button type="button" class="secondary" id="nudgeL" aria-label="Move clip back half a second">− 0.5s</button><button type="button" class="secondary" id="nudgeR" aria-label="Move clip forward half a second">+ 0.5s</button></div>
+        <label class="fade-label"><input type="checkbox" id="fade" checked> Fade in/out</label>
+      </div>
+      <div class="export-row">
+        <button type="button" id="play" class="secondary">▶ Preview clip</button>
+        <div class="export-buttons">
+          <button type="button" id="saveM4r">Save .m4r <span>iPhone</span></button>
+          <button type="button" class="secondary" id="saveMp3">Save .mp3</button>
+          <button type="button" class="secondary" id="saveWav">Save .wav <span>lossless</span></button>
+        </div>
+      </div>
+    </fieldset>
+    <p class="hint quality-note">320 kb/s AAC for iPhone · 320 kb/s MP3 · Lossless WAV<br>Exports are saved to Downloads on this computer.</p>
+    <p id="status" role="status" aria-live="polite"></p>
+  </section>
+</main>
+</body>
+</html>
