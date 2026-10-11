@@ -1,0 +1,145 @@
+{
+  "aspect": "vertical",
+  "fps": 30,
+  "transition": 0.3,
+  "audio": {
+    "file": "exports/demo-ringtone-iphone.m4a",
+    "start": 0,
+    "delay": 12.4,
+    "volume": 0.8
+  },
+  "shots": [
+    {
+      "kind": "title",
+      "duration": 2.8,
+      "caption": "Your sound.",
+      "accent": "On repeat.",
+      "subcaption": "A ringtone that sounds like you."
+    },
+    {
+      "file": "raw/07-mobile-import.mp4",
+      "start": 0.3,
+      "duration": 3.7,
+      "layout": "mobile",
+      "caption": "Start with a link.",
+      "subcaption": "Or bring your own audio file.",
+      "eyebrow": "01 / BRING YOUR SOUND",
+      "zoom": 0.035,
+      "pan": [
+        0.5,
+        0.5,
+        0.5,
+        0.75
+      ]
+    },
+    {
+      "file": "raw/07-mobile-import.mp4",
+      "start": 8.5,
+      "duration": 2.5,
+      "layout": "mobile",
+      "caption": "Your audio. Ready.",
+      "subcaption": "Best available source quality.",
+      "eyebrow": "01 / BRING YOUR SOUND",
+      "zoom": 0.035,
+      "pan": [
+        0.5,
+        0.5,
+        0.5,
+        0.75
+      ]
+    },
+    {
+      "file": "raw/05-mobile-editor.mp4",
+      "start": 12.4,
+      "duration": 4,
+      "layout": "mobile",
+      "caption": "Find your favorite part.",
+      "subcaption": "30 seconds. Or make it your own.",
+      "eyebrow": "02 / MAKE THE CUT",
+      "zoom": 0.06,
+      "crop": [
+        40,
+        250,
+        780,
+        1155
+      ],
+      "box": [
+        75,
+        430,
+        930,
+        1378
+      ],
+      "pan": [
+        0.5,
+        0.5,
+        0.5,
+        0.25
+      ]
+    },
+    {
+      "file": "raw/05-mobile-editor.mp4",
+      "start": 17.5,
+      "duration": 5,
+      "layout": "mobile",
+      "caption": "Give it a listen.",
+      "subcaption": "Preview before you download.",
+      "eyebrow": "03 / PRESS PLAY",
+      "zoom": 0.06,
+      "crop": [
+        40,
+        250,
+        780,
+        1155
+      ],
+      "box": [
+        75,
+        430,
+        930,
+        1378
+      ],
+      "pan": [
+        0.5,
+        0.5,
+        0.5,
+        0.25
+      ]
+    },
+    {
+      "file": "raw/06-mobile-export.mp4",
+      "start": 0.8,
+      "duration": 5.9,
+      "layout": "mobile",
+      "caption": "Made for your phone.",
+      "subcaption": "Android + iPhone. A tap away.",
+      "eyebrow": "04 / TAKE IT WITH YOU",
+      "zoom": 0.04,
+      "crop": [
+        40,
+        110,
+        780,
+        1495
+      ],
+      "box": [
+        175,
+        430,
+        730,
+        1398
+      ],
+      "pan": [
+        0.5,
+        0.5,
+        0.5,
+        0.35
+      ]
+    },
+    {
+      "kind": "outro",
+      "duration": 4,
+      "caption": "Make it ring.",
+      "accent": "Make it yours.",
+      "subcaption": "Create yours in your browser.",
+      "credit": "Built by @apoorvdarshan"
+    }
+  ],
+  "sound_design": true
+}

@@ -1,0 +1,220 @@
+{
+  "aspect": "landscape",
+  "fps": 30,
+  "transition": 0.25,
+  "audio": {
+    "file": "exports/demo-ringtone.mp3",
+    "delay": 14.941,
+    "start": 0,
+    "volume": 0.8
+  },
+  "shots": [
+    {
+      "kind": "title",
+      "duration": 2.6,
+      "caption": "Make it your ringtone.",
+      "accent": "Your sound. On repeat.",
+      "subcaption": "From a YouTube link to your next favorite ringtone."
+    },
+    {
+      "file": "raw/08-desktop-import.mp4",
+      "start": 0.5,
+      "duration": 5,
+      "crop": [
+        430,
+        566,
+        1550,
+        346
+      ],
+      "box": [
+        86,
+        384,
+        1748,
+        390
+      ],
+      "caption": "A link is all it takes.",
+      "subcaption": "YouTube or your own audio file. You choose.",
+      "eyebrow": "01 / BRING YOUR SOUND",
+      "zoom": 0.025,
+      "pan": [
+        0.5,
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "file": "raw/08-desktop-import.mp4",
+      "start": 12,
+      "duration": 1.3,
+      "crop": [
+        425,
+        560,
+        1570,
+        1280
+      ],
+      "box": [
+        494,
+        245,
+        932,
+        760
+      ],
+      "caption": "Ready to make it yours.",
+      "subcaption": "Best available source audio.",
+      "eyebrow": "01 / BRING YOUR SOUND",
+      "zoom": 0.035,
+      "pan": [
+        0.5,
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "file": "raw/10-desktop-trim.mp4",
+      "start": 0.4,
+      "duration": 6.3,
+      "crop": [
+        230,
+        530,
+        982,
+        600
+      ],
+      "box": [
+        338,
+        254,
+        1244,
+        760
+      ],
+      "caption": "Find your favorite 30 seconds.",
+      "subcaption": "Drag to trim. Pick a preset. Make it yours.",
+      "eyebrow": "02 / MAKE THE CUT",
+      "zoom": 0.06,
+      "pan": [
+        0.5,
+        0.5,
+        0.5,
+        0.3
+      ]
+    },
+    {
+      "file": "raw/10-desktop-trim.mp4",
+      "start": 7,
+      "duration": 4.8,
+      "crop": [
+        230,
+        530,
+        982,
+        600
+      ],
+      "box": [
+        338,
+        254,
+        1244,
+        760
+      ],
+      "caption": "Press play. Feel the difference.",
+      "subcaption": "Listen to your cut before you save it.",
+      "eyebrow": "03 / PRESS PLAY",
+      "zoom": 0.085,
+      "pan": [
+        0.4,
+        0.5,
+        0.55,
+        0.35
+      ]
+    },
+    {
+      "file": "raw/11-desktop-export.mp4",
+      "start": 0,
+      "duration": 4.8,
+      "layout": "focus",
+      "crop": [
+        1214,
+        330,
+        460,
+        310
+      ],
+      "box": [
+        880,
+        275,
+        960,
+        648
+      ],
+      "caption": "Your phone.\nYour format.",
+      "subcaption": "Android + iPhone.\nMP3, M4A, M4R or WAV.",
+      "eyebrow": "04 / MADE FOR YOUR PHONE",
+      "zoom": 0.025,
+      "pan": [
+        0.5,
+        0.5,
+        0.5,
+        0.3
+      ]
+    },
+    {
+      "file": "raw/11-desktop-export.mp4",
+      "start": 4.8,
+      "duration": 3.8,
+      "layout": "focus",
+      "crop": [
+        1222,
+        785,
+        449,
+        365
+      ],
+      "box": [
+        890,
+        225,
+        936,
+        760
+      ],
+      "caption": "Download.\nMake it ring.",
+      "subcaption": "Your ringtone, ready to save.",
+      "eyebrow": "05 / TAKE IT WITH YOU",
+      "zoom": 0.04,
+      "pan": [
+        0.5,
+        0.5,
+        0.5,
+        0.45
+      ]
+    },
+    {
+      "file": "raw/12-desktop-themes.mp4",
+      "start": 0,
+      "duration": 4.6,
+      "crop": [
+        235,
+        15,
+        1450,
+        1145
+      ],
+      "box": [
+        452,
+        232,
+        1016,
+        802
+      ],
+      "caption": "Light. Dark. Your choice.",
+      "subcaption": "Made for your browser, on desktop and mobile.",
+      "eyebrow": "06 / FEELS RIGHT AT HOME",
+      "zoom": 0.035,
+      "pan": [
+        0.5,
+        0.5,
+        0.5,
+        0.35
+      ]
+    },
+    {
+      "kind": "outro",
+      "duration": 4.3,
+      "caption": "Make it ring.",
+      "accent": "Make it yours.",
+      "subcaption": "Create yours in your browser.",
+      "credit": "Built by @apoorvdarshan"
+    }
+  ],
+  "sound_design": true
+}
