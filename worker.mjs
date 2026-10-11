@@ -65,7 +65,7 @@ export default {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.BACKEND_TOKEN}` },
         body: JSON.stringify({ url: target }),
         signal: AbortSignal.any([request.signal, AbortSignal.timeout(250_000)]),
-        redirect: 'error',
+        redirect: 'manual',
       };
       const backend = env.YOUTUBE_CONTAINER
         ? await env.YOUTUBE_CONTAINER.getByName('youtube-audio').fetch(new Request('http://container/api/youtube', options))
@@ -81,7 +81,8 @@ export default {
         if (backend.headers.has(name)) headers.set(name, backend.headers.get(name));
       }
       return new Response(backend.body, { status: 200, headers });
-    } catch {
+    } catch (cause) {
+      console.error('YouTube gateway failed:', String(cause?.message || cause).replaceAll(env.BACKEND_TOKEN, '[redacted]'));
       return error('YouTube import timed out or is unavailable. Try a shorter video or upload a file.', 504);
     }
   },

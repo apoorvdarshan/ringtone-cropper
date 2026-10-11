@@ -2,7 +2,7 @@
   "name": "ringtone-cropper",
   "main": "cloudflare.mjs",
   "compatibility_date": "2026-10-01",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": ["nodejs_compat", "enable_request_signal"],
   "containers": [{
     "class_name": "YouTubeContainer",
     "image": "registry.cloudflare.com/9e5adbe3da178e02dbb5b3c27ac1c761/ringtone-cropper-api@sha256:0225d1755a9e360aebda79e48f9b119643880b1ae73d54856cc3ccab0ac2571b",

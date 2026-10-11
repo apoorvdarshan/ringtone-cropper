@@ -39,6 +39,7 @@ test('proxies original audio bytes and keeps backend credentials private', async
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     assert.equal(String(url), 'https://backend.example/api/youtube');
     assert.equal(options.headers.Authorization, 'Bearer test-secret');
+    assert.equal(options.redirect, 'manual');
     assert.deepEqual(JSON.parse(options.body), { url: 'https://www.youtube.com/watch?v=jNQXAC9IVRw' });
     return new Response(audio, { headers: { 'Content-Type': 'audio/webm', 'X-Audio-Filename': 'Test.webm', 'X-Audio-Title': 'Test', 'X-Private-Debug': 'secret' } });
   });
@@ -73,6 +74,7 @@ test('uses the bound container with canonical input and preserves original bytes
         calls++;
         assert.equal(forwarded.url, 'http://container/api/youtube');
         assert.equal(forwarded.method, 'POST');
+        assert.equal(forwarded.redirect, 'manual');
         assert.equal(forwarded.headers.get('authorization'), 'Bearer test-secret');
         assert.equal(forwarded.headers.get('cookie'), null);
         assert.deepEqual(await forwarded.json(), { url: 'https://www.youtube.com/watch?v=jNQXAC9IVRw' });
@@ -91,6 +93,19 @@ test('uses the bound container with canonical input and preserves original bytes
   assert.equal(response.headers.get('x-audio-filename'), 'Original.webm');
   assert.equal(response.headers.has('authorization'), false);
   assert.deepEqual(new Uint8Array(await response.arrayBuffer()), audio);
+});
+
+test('rejects backend redirects without forwarding credentials to another origin', async t => {
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    calls++;
+    assert.equal(options.redirect, 'manual');
+    return new Response(null, { status: 302, headers: { Location: 'https://other.example/audio' } });
+  });
+  const response = await worker.fetch(request({ url: 'https://youtu.be/jNQXAC9IVRw' }), environment());
+  assert.equal(response.status, 502);
+  assert.equal(response.headers.has('location'), false);
+  assert.equal(calls, 1);
 });
 
 test('container requests honor client cancellation', async () => {
