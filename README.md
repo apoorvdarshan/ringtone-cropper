@@ -133,3 +133,9 @@ Open [localhost:3005](http://localhost:3005). This editor lives in `local/` and 
 [X · @apoorvdarshan](https://x.com/apoorvdarshan) · [LinkedIn](https://www.linkedin.com/in/apoorvdarshan/) · [Instagram · @apoorvcodes](https://www.instagram.com/apoorvcodes/) · [GitHub · @apoorvdarshan](https://github.com/apoorvdarshan)
 
 Ideas, bugs, or feedback? [Open a GitHub issue](https://github.com/apoorvdarshan/ringtone-cropper/issues). Please keep private audio and personal information out of public issues.
+
+## Support my work
+
+If Ringtone Cropper helped you make something you love, you can support my work:
+
+[Ko-fi](https://ko-fi.com/apoorvdarshan) · [PayPal](https://paypal.me/apoorvdarshan) · [GitHub Sponsors](https://github.com/sponsors/apoorvdarshan)
