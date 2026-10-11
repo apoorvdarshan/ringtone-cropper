@@ -265,7 +265,7 @@ function createApp(options = {}) {
   async function exportClip(req, res, url) {
     const source = getSource(url);
     const start = Number(url.searchParams.get('start') || 0);
-    const requestedDuration = Number(url.searchParams.get('dur') || 29.9);
+    const requestedDuration = Number(url.searchParams.get('dur') || 30);
     const format = url.searchParams.get('fmt') || 'm4r';
     if (!Number.isFinite(start) || start < 0 || start >= source.duration || !Number.isFinite(requestedDuration) || requestedDuration <= 0 || requestedDuration > 40) {
       throw new HttpError(400, 'Choose a valid start time and a clip length of up to 40 seconds.');
