@@ -1,9 +1,9 @@
 import { FFmpeg } from "/vendor/ffmpeg/index.js";
 import { fetchFile } from "/vendor/util/index.js";
+import { DEFAULT_LENGTH, MIN_LENGTH as MIN_LEN, MAX_LENGTH as MAX_LEN, fitSelection, initialDevice } from "/selection.mjs";
 
 const CORE = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm";
 const CORE_WASM_BYTES = 32.1e6; // uncompressed ffmpeg-core.wasm, for the download progress label
-const MIN_LEN = 1, MAX_LEN = 40;
 const MAX_SOURCE_BYTES = 100 * 1024 * 1024, MAX_SOURCE_SECONDS = 20 * 60;
 const $ = (id) => document.getElementById(id);
 
@@ -15,8 +15,9 @@ const exportButtons = [...document.querySelectorAll(".dl")];
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
 let file = null, fsName = null, fileCount = 0, buffer = null, duration = 0;
-let clipStart = 0, clipLen = 29.9;
-let peaks = null, ghostPeaks = null, grow = 1;
+let clipStart = 0, clipLen = DEFAULT_LENGTH, preferredLen = DEFAULT_LENGTH;
+let device = initialDevice(navigator.userAgent, navigator.maxTouchPoints);
+let peaks = null, grow = 1;
 let actx = null, source = null, playStartedAt = 0, playFrom = 0, playPos = null, raf = 0, loop = false;
 let ffmpeg = null, ffmpegLoading = null, onEncoderBytes = null, onEncoderLog = null, exporting = false;
 let importing = false;
@@ -111,11 +112,11 @@ async function openFile(f) {
   fsName = nextName;
   buffer = nextBuffer;
   duration = buffer.duration;
-  clipLen = clamp(clipLen, Math.min(MIN_LEN, duration), Math.min(MAX_LEN, duration));
+  clipLen = fitSelection({ length: preferredLen }, duration).length;
   clipStart = loudestStart(clipLen);
 
   $("fname").textContent = f.name;
-  $("toneName").textContent = `${toneName(f.name)} (ringtone)`;
+  if ($("toneName")) $("toneName").textContent = `${toneName(f.name)} (ringtone)`;
   $("total").textContent = fmtShort(duration);
   stage.classList.remove("is-empty");
   editor.classList.remove("is-locked");
@@ -141,8 +142,9 @@ function syncControls() {
   const busy = importing || exporting;
   document.querySelectorAll("#sourcePicker input, #sourcePicker select, #sourcePicker button, #swap, #choose, #file")
     .forEach((el) => (el.disabled = busy));
-  document.querySelectorAll("#transport button, .dl, #editor input")
+  document.querySelectorAll("#transport button, .dl, #editor input, #startTime, #endTime")
     .forEach((el) => (el.disabled = busy || !buffer));
+  document.querySelectorAll("#deviceAndroid, #deviceIphone, #outputFormat").forEach((el) => (el.disabled = busy));
   editor.classList.toggle("is-locked", busy || !buffer);
   sel.tabIndex = busy || !buffer ? -1 : 0;
   stage.setAttribute("aria-busy", String(importing));
@@ -176,8 +178,8 @@ function updateSource() {
   $("uploadPanel").hidden = youtube;
   $("choose").textContent = youtube ? "Add a YouTube link" : "Choose a song";
   $("sourceHelp").textContent = youtube
-    ? "Best available YouTube audio, with no extra conversion before cropping. Up to 20 minutes and 100 MB."
-    : "Your file stays in this browser. Audio and video files up to 20 minutes and 100 MB.";
+    ? "Best available audio. Up to 20 minutes and 100 MB."
+    : "Stays in your browser. Audio or video, up to 20 minutes and 100 MB.";
 }
 sourceSelect.onchange = () => { updateSource(); setSourceStatus(""); };
 
@@ -306,19 +308,6 @@ function computePeaks() {
   for (let x = 0; x < n; x++) peaks[x] = Math.pow(peaks[x] / (top || 1), 0.8);
 }
 
-// A made-up waveform for the empty state, so the editor reads as an editor before a song is chosen.
-function computeGhost() {
-  const n = barCount();
-  ghostPeaks = new Float32Array(n);
-  let seed = 7;
-  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  for (let x = 0; x < n; x++) {
-    const t = x / n;
-    const shape = 0.35 + 0.4 * Math.sin(t * Math.PI) + 0.2 * Math.sin(t * 19);
-    ghostPeaks[x] = clamp(shape * (0.55 + 0.45 * rand()), 0.06, 1);
-  }
-}
-
 function draw() {
   const dpr = window.devicePixelRatio || 1;
   const w = track.clientWidth, h = track.clientHeight;
@@ -330,7 +319,7 @@ function draw() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
 
-  const data = peaks || ghostPeaks;
+  const data = peaks;
   if (!data) return;
   const n = data.length, step = w / n, bw = Math.max(1.5, step * 0.58);
   const a = duration ? (clipStart / duration) * w : -1;
@@ -342,8 +331,7 @@ function draw() {
     let g = 1;
     if (grow < 1) g = clamp(grow * 1.6 - (i / n) * 0.6, 0, 1), g = 1 - Math.pow(1 - g, 3);
     const bh = Math.max(2, data[i] * h * 0.86 * g);
-    if (!peaks) { ctx.fillStyle = colors["bar-ghost"]; ctx.globalAlpha = 0.35 + 0.65 * Math.min(1, Math.abs(i / n - 0.5) * 3); }
-    else if (cx >= a && cx <= b) ctx.fillStyle = cx <= played ? colors.trim : colors.bar;
+    if (cx >= a && cx <= b) ctx.fillStyle = cx <= played ? colors.trim : colors.bar;
     else ctx.fillStyle = colors["bar-off"];
     ctx.beginPath();
     if (ctx.roundRect) ctx.roundRect(x, (h - bh) / 2, bw, bh, bw / 2);
@@ -368,25 +356,40 @@ function growIn() {
 let resizeTimer = 0;
 new ResizeObserver(() => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => { if (buffer) computePeaks(); else computeGhost(); draw(); }, 60);
+  resizeTimer = setTimeout(() => { if (buffer) computePeaks(); draw(); }, 60);
 }).observe(track);
-computeGhost();
 draw();
 
 // ---------- selection ----------
 function update() {
   if (!duration) return;
-  clipLen = round1(clamp(clipLen, Math.min(MIN_LEN, duration), Math.min(MAX_LEN, duration)));
-  clipStart = round1(clamp(clipStart, 0, Math.max(0, duration - clipLen)));
+  ({ start: clipStart, length: clipLen } = fitSelection({ start: clipStart, length: clipLen }, duration));
   sel.style.left = (clipStart / duration) * 100 + "%";
   sel.style.width = (clipLen / duration) * 100 + "%";
   $("range").textContent = `${fmt(clipStart)} – ${fmt(clipStart + clipLen)}`;
-  $("meta").textContent = `${clipLen.toFixed(1)} seconds of a ${fmtShort(duration)} song`;
+  $("meta").textContent = `${Number(clipLen.toFixed(1))} seconds of a ${fmtShort(duration)} song`;
+  updateLengthReadout();
+  if ($("startTime")) {
+    $("startTime").value = clipStart.toFixed(1);
+    $("startTime").min = Math.max(0, clipStart + clipLen - MAX_LEN).toFixed(1);
+    $("startTime").max = (clipStart + clipLen - MIN_LEN).toFixed(1);
+  }
+  if ($("endTime")) {
+    $("endTime").value = (clipStart + clipLen).toFixed(1);
+    $("endTime").min = (clipStart + MIN_LEN).toFixed(1);
+    $("endTime").max = (Math.floor(Math.min(duration, clipStart + MAX_LEN) * 10 + 1e-7) / 10).toFixed(1);
+  }
   sel.setAttribute("aria-valuemax", Math.max(0, duration - clipLen).toFixed(1));
   sel.setAttribute("aria-valuenow", clipStart.toFixed(1));
   sel.setAttribute("aria-valuetext", `Starts at ${fmt(clipStart)}, ${clipLen.toFixed(1)} seconds long`);
   presetButtons.forEach((b) => b.setAttribute("aria-pressed", String(Math.abs(parseFloat(b.dataset.d) - clipLen) < 0.05)));
+  updateDeviceHelp();
   draw();
+}
+
+function updateLengthReadout() {
+  if ($("clipLength")) $("clipLength").textContent = `${Number(clipLen.toFixed(1))} seconds`;
+  if ($("lengthDisplay")) $("lengthDisplay").textContent = `${clipLen.toFixed(1)} s`;
 }
 
 function moveBy(delta) {
@@ -397,14 +400,35 @@ function moveBy(delta) {
 }
 
 presetButtons.forEach((b) => (b.onclick = () => {
+  if (importing || exporting || !buffer) return;
   const end = clipStart + clipLen;
-  clipLen = parseFloat(b.dataset.d);
+  preferredLen = clipLen = parseFloat(b.dataset.d);
   // Keep the clip inside the song: if it would run off the end, slide it back.
   if (clipStart + clipLen > duration) clipStart = Math.max(0, Math.min(clipStart, end - clipLen));
   update();
   if (source) play();
 }));
 document.querySelectorAll("[data-n]").forEach((b) => (b.onclick = () => moveBy(parseFloat(b.dataset.n))));
+
+for (const id of ["startTime", "endTime"]) {
+  const input = $(id);
+  if (!input) continue;
+  input.onchange = () => {
+    if (!buffer || importing || exporting) return;
+    const next = input.valueAsNumber;
+    if (!Number.isFinite(next)) { update(); return; }
+    if (id === "startTime") {
+      const end = clipStart + clipLen;
+      clipStart = clamp(round1(next), Math.max(0, end - MAX_LEN), end - MIN_LEN);
+      clipLen = end - clipStart;
+    } else {
+      clipLen = clamp(round1(next) - clipStart, MIN_LEN, Math.min(MAX_LEN, duration - clipStart));
+    }
+    update();
+    preferredLen = clipLen;
+    if (source) play();
+  };
+}
 
 // Drag the frame to move it, drag a handle to resize it, or tap elsewhere to center it there.
 let drag = null;
@@ -425,7 +449,7 @@ track.addEventListener("pointerdown", (e) => {
   e.preventDefault();
 });
 track.addEventListener("pointermove", (e) => {
-  if (!drag) return;
+  if (!drag || importing || exporting) return;
   const t = timeAt(e.clientX);
   if (drag.mode === "move") clipStart = t - drag.offset;
   else if (drag.mode === "l") {
@@ -433,6 +457,7 @@ track.addEventListener("pointermove", (e) => {
     clipLen = drag.end - clipStart;
   } else clipLen = clamp(t - clipStart, MIN_LEN, Math.min(MAX_LEN, duration - clipStart));
   update();
+  if (drag.mode !== "move") preferredLen = clipLen;
 });
 const endDrag = () => {
   if (!drag) return;
@@ -570,7 +595,7 @@ async function exportAs(key, btn) {
     setStatus(`Saved “${name}” (${size}).`, "ok");
     const next = document.createElement("a");
     next.href = "#install";
-    next.textContent = "Add it to your iPhone";
+    next.textContent = device === "iphone" ? "Add it to your iPhone" : "Add it to your Android phone";
     statusEl.append(" ", next);
   } catch (e) {
     console.error(e);
@@ -592,6 +617,7 @@ function setProgress(p) { progressEl.hidden = false; progressEl.firstElementChil
 // ---------- install guide tabs ----------
 const tabs = [...document.querySelectorAll('[role="tab"]')];
 function selectTab(tab, focus) {
+  if (!tab) return;
   for (const t of tabs) {
     const on = t === tab;
     t.setAttribute("aria-selected", String(on));
@@ -608,7 +634,46 @@ tabs.forEach((t, i) => {
     selectTab(tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length], true);
   };
 });
-// Open the guide on the tab that matches this device.
-const ua = navigator.userAgent;
-if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) selectTab($("tab-ios"));
-else if (/Windows/.test(ua)) selectTab($("tab-win"));
+function selectDevice(next) {
+  device = next;
+  const iphone = device === "iphone";
+  for (const id of ["deviceAndroid", "deviceIphone"]) {
+    const button = $(id);
+    button?.setAttribute("aria-pressed", String(button.dataset.device === device));
+  }
+  selectFormat(iphone ? "m4a" : "mp3");
+  updateDeviceHelp();
+  selectTab($(iphone ? "tab-ios" : "tab-android"));
+}
+function selectFormat(format) {
+  if (!Object.hasOwn(FORMATS, format)) return;
+  if ($("outputFormat")) $("outputFormat").value = format;
+  const save = $("saveRingtone");
+  if (save) {
+    save.dataset.f = format;
+    save.querySelector(".lbl").textContent = "Download ringtone";
+    save.querySelector(".ext").textContent = `.${format}`;
+  }
+  if ($("formatNote")) $("formatNote").textContent = {
+    mp3: "MP3 · Android · 320 kb/s.",
+    m4a: "M4A · iPhone / GarageBand · 320 kb/s AAC.",
+    m4r: "M4R · iPhone via computer · 320 kb/s AAC.",
+    wav: "WAV · 32-bit float · No added lossy compression.",
+  }[format];
+}
+function updateDeviceHelp() {
+  if ($("deviceHelp")) $("deviceHelp").textContent = device === "iphone"
+    ? clipLen > 30
+      ? "GarageBand shortens clips longer than 30 seconds. Choose 30 s for iPhone."
+      : "Use M4A with GarageBand on your iPhone, or M4R to transfer from a computer."
+    : "MP3 is a good fit for Android. Choose your downloaded file in your phone’s sound settings.";
+}
+for (const id of ["deviceAndroid", "deviceIphone"]) {
+  const button = $(id);
+  if (button) button.onclick = () => { if (!importing && !exporting) selectDevice(button.dataset.device); };
+}
+if ($("outputFormat")) $("outputFormat").onchange = (event) => {
+  if (!importing && !exporting) selectFormat(event.target.value);
+};
+selectDevice(device);
+updateLengthReadout();

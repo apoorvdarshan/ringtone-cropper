@@ -17,7 +17,7 @@ let dragging = false;
 let playbackVersion = 0;
 
 const duration = () => buffer?.duration || 0;
-const clipDuration = () => Math.min(Math.max(1, Number(durEl.value) || 29.9), 40, duration());
+const clipDuration = () => Math.min(Math.max(1, Number(durEl.value) || 30), 40, duration());
 const clipStart = () => Number(startEl.value) || 0;
 const fmt = value => {
   const tenths = Math.round(value * 10);
@@ -138,7 +138,7 @@ async function loadSource(next) {
   source = next;
   buffer = nextBuffer;
   startEl.value = 0;
-  durEl.value = Math.min(29.9, buffer.duration).toFixed(1);
+  durEl.value = Math.min(30, buffer.duration).toFixed(1);
   $("track-title").textContent = next.title;
   $("track-quality").textContent = `${next.quality || "Original audio preserved"} · Lossless preview`;
   $("empty-wave").hidden = true;

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Privacy Policy · Ringtone Cropper</title>
+  <meta name="description" content="How Ringtone Cropper handles local files, YouTube imports, and technical request information.">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="canonical" href="https://ringtone.apoorvdarshan.com/privacy">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/">Ringtone Cropper</a>
+    <a class="nav-link" href="/">Back to editor</a>
+  </header>
+  <main class="legal-page">
+    <header class="legal-header">
+      <h1>Privacy Policy</h1>
+      <p>Last updated: 11 October 2026</p>
+    </header>
+    <section class="legal-section">
+      <h2>The short version</h2>
+      <p>Ringtone Cropper is an independent project maintained by Apoorv Darshan. Audio files you select from your device stay in your browser. YouTube imports use a server to fetch the audio, then return it to your browser for editing. The application has no accounts, advertising, or application analytics.</p>
+    </section>
+    <section class="legal-section">
+      <h2>Files from your device</h2>
+      <p>Choosing or dropping a local audio or video file gives the page access to that file for previewing, cropping, and exporting. Its audio and filename are not sent to our server. Processing takes place in your browser using Web Audio and ffmpeg.wasm. The file you download is saved through your browser to your device.</p>
+      <p>The application does not keep a server-side library of your files or editing history. Your browser may cache website resources, and files you download remain on your device until you remove them.</p>
+    </section>
+    <section class="legal-section">
+      <h2>YouTube imports</h2>
+      <p>When you submit a YouTube link, our Cloudflare-hosted backend receives the link and requests the selected video's audio from YouTube. It temporarily processes the audio and video metadata, such as the title, so it can return a named audio file to your browser.</p>
+      <p>The backend is designed to delete temporary working files after a request completes, fails, or is canceled. It does not provide a persistent audio library, and import responses are marked not to be cached. This cleanup does not control separate infrastructure or security logs.</p>
+      <p>YouTube receives requests from the backend for the selected video. We do not ask for your YouTube login, account cookies, or password.</p>
+    </section>
+    <section class="legal-section">
+      <h2>Technical information and service providers</h2>
+      <p>Our hosting and asset providers necessarily receive connection information when your browser contacts them. This can include your IP address, browser information, request path, time, and response or error information.</p>
+      <ul>
+        <li><a href="https://www.cloudflare.com/privacypolicy/">Cloudflare</a> hosts the site and import service. The gateway uses your IP address to limit repeated import requests. Cloudflare may process network, diagnostic, and security information under its own policies and service settings.</li>
+        <li><a href="https://policies.google.com/privacy">Google Fonts</a> provides fonts used by the editor. Your browser requests those fonts from Google.</li>
+        <li><a href="https://www.jsdelivr.com/terms/privacy-policy">jsDelivr</a> provides the ffmpeg engine used for audio processing. Your browser downloads that code; your selected audio is not uploaded to jsDelivr.</li>
+        <li><a href="https://policies.google.com/privacy">YouTube / Google</a> processes backend requests for videos you ask to import.</li>
+      </ul>
+      <p>The application can record technical errors for troubleshooting. We do not promise a fixed retention period for provider-managed logs. This website's code does not add tracking cookies or analytics scripts.</p>
+    </section>
+    <section class="legal-section">
+      <h2>Your choices</h2>
+      <p>You can use a file from your device without submitting a YouTube link. Close or reload the editor to end the current editing session; remove saved files through your device's file manager. Your browser settings control website caching and other browser storage.</p>
+      <p>Links to social profiles, documentation, and GitHub take you to separate services with their own privacy practices.</p>
+    </section>
+    <section class="legal-section">
+      <h2>Questions and updates</h2>
+      <p>For a question about this policy, contact the maintainer through <a href="https://github.com/apoorvdarshan/ringtone-cropper/issues">GitHub Issues</a>. Issues are public, so do not include sensitive audio, private links, or personal information.</p>
+      <p>This page may be updated as the service changes. The date above identifies the latest revision.</p>
+    </section>
+  </main>
+  <footer class="bottom">
+    <div class="footer-inner">
+      <p>Made by <a href="https://github.com/apoorvdarshan">Apoorv Darshan</a></p>
+      <nav class="footer-links" aria-label="Site links">
+        <a href="/">Editor</a>
+        <a href="/terms">Terms &amp; Disclaimer</a>
+        <a href="https://github.com/apoorvdarshan/ringtone-cropper">Source code</a>
+      </nav>
+      <nav class="footer-links" aria-label="Social profiles">
+        <a href="https://x.com/apoorvdarshan">X</a>
+        <a href="https://www.linkedin.com/in/apoorvdarshan/">LinkedIn</a>
+        <a href="https://www.instagram.com/apoorvcodes/">Instagram</a>
+        <a href="https://github.com/apoorvdarshan">GitHub</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

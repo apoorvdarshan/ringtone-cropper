@@ -1,61 +1,133 @@
 # Ringtone Cropper
 
-Crop a YouTube video or an audio/video file into an iPhone ringtone.
+**Your favorite moment. Your next ringtone.**
 
-**Live:** https://ringtone.apoorvdarshan.com
+Make high-quality ringtones for **Android and iPhone** from an audio file or a YouTube link. Choose the moment, fine-tune the sound, and download it from your browser.
 
-- Choose **YouTube link** or **Upload audio file** in the source dropdown
-- Download YouTube's best available original audio, or drag-and-drop mp3, m4a, wav, flac, aac, ogg, mp4, mov…
-- iOS-style trim editor: drag the yellow frame or its ends (29.9s / 40s / 15s presets), live preview + repeat
-- Starts on the loudest stretch of the song, which is usually the chorus
-- Fade in/out, loudness normalization
-- Export **.m4r** (iPhone ringtone), .m4a and .mp3 at 320 kb/s, or lossless float WAV
-- Uploaded files stay on your device; waveform preview and export run in the browser via [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm)
-- YouTube audio is downloaded by a private backend, sent to your browser without lossy conversion, and immediately removed from the server
+[Open the editor](https://ringtone.apoorvdarshan.com) · [Source code](https://github.com/apoorvdarshan/ringtone-cropper) · [Report an issue](https://github.com/apoorvdarshan/ringtone-cropper/issues)
 
-## Dev
+## Make it yours
+
+1. **Bring your audio.** Paste a permitted YouTube link, choose a file, or drop audio/video onto the editor.
+2. **Pick the moment.** Start with exactly **30 seconds**, choose **15 / 30 / 40 seconds**, or adjust the selection and start/end times yourself.
+3. **Save for your phone.** Choose Android or iPhone, preview the clip, and download your ringtone.
+
+The editor starts on the loudest stretch of the track as a useful first suggestion. Drag the waveform selection, resize its ends, or use the arrow keys to move it precisely. Repeat preview, fade in/out, and optional volume normalization help finish the clip.
+
+## Audio quality
+
+| Export | Best for | Encoding |
+| --- | --- | --- |
+| **MP3** | Android ringtone | 320 kb/s MP3 |
+| **M4A** | iPhone, including GarageBand import | 320 kb/s AAC |
+| **M4R** | Other iPhone ringtone workflows | 320 kb/s AAC |
+| **WAV** | Further editing or an uncompressed copy | Float PCM, no added lossy compression |
+
+YouTube imports select the best available audio stream and send the original encoded audio to your browser without an intermediate lossy conversion. Exports use the original source. Higher export bitrates cannot restore detail missing from that source.
+
+Sources can be up to **20 minutes / 100 MiB**; clips can be up to **40 seconds**. For the iPhone GarageBand workflow, use **30 seconds or less**—GarageBand shortens longer ringtones.
+
+## Put it on your phone
+
+**Android**
+
+1. Download the MP3.
+2. Open **Files by Google → Audio**, then play the downloaded file.
+3. Choose **More → Set as ringtone** and allow system settings access if prompted.
+
+[Google's ringtone instructions](https://support.google.com/files/answer/10018943?hl=en)
+
+**iPhone**
+
+1. Save the M4A file to Files.
+2. In GarageBand, open Audio Recorder → Tracks → Loops → Files and import the clip at the start. Set the song section to **Automatic** so the full clip imports.
+3. Open My Songs, select the project, then **Share → Ringtone → Export → Use sound as → Standard Ringtone**.
+
+[Apple's ringtone instructions](https://support.apple.com/en-us/120692) · [Importing audio into GarageBand](https://support.apple.com/guide/garageband-iphone/chsab9d208e/ios)
+
+The website creates the audio file; your phone's apps/settings apply it as a ringtone. No account is needed to use the editor.
+
+## Where the audio goes
+
+```mermaid
+flowchart LR
+    A[File from your device] --> D[Browser: preview and crop]
+    B[YouTube link] --> C[Cloudflare Worker: validate and rate limit]
+    C --> E[Cloudflare Container: yt-dlp gets original audio]
+    E --> D
+    D --> F[ffmpeg.wasm: export ringtone]
+    F --> G[Download to your device]
+```
+
+Files you choose from your device are processed in your browser and are **not uploaded to our server**. YouTube imports send the video link to the backend, which temporarily downloads the audio and is designed to remove its working files when the request finishes or is canceled. Cropping and export then run in your browser.
+
+Cloudflare handles hosting and request traffic. Google Fonts serves fonts, and jsDelivr provides the ffmpeg engine. These providers can receive normal connection information such as IP addresses. See the [Privacy Policy](https://ringtone.apoorvdarshan.com/privacy) for details.
+
+Only use audio you have permission to download and edit, and follow the source platform's terms. A publicly accessible video does not by itself grant download rights. This independent project is not affiliated with YouTube, Google, or Apple. See the [Terms & Disclaimer](https://ringtone.apoorvdarshan.com/terms).
+
+## Develop locally
+
+The public editor uses plain HTML, CSS, and JavaScript, [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm), a Cloudflare Worker, and a Node.js/yt-dlp container.
 
 ```sh
 npm install
-npm run dev     # local Worker + container preview (requires Docker)
-npm run deploy  # deploy the public editor and API gateway to Cloudflare
 ```
 
-`public/vendor/` contains `@ffmpeg/ffmpeg` and `@ffmpeg/util` ESM builds; the ffmpeg core (~32 MB wasm) is loaded from jsDelivr since it exceeds Cloudflare's 25 MiB asset limit.
+Create an ignored `.dev.vars` file containing a development-only `BACKEND_TOKEN` of at least 24 characters. With Docker running:
 
-## Hosted YouTube backend
+```sh
+npm run dev
+```
 
-`worker.mjs` serves the same-origin `/api/youtube` endpoint and streams the original audio back to the browser. `cloudflare.mjs` connects it to a Cloudflare Container running the standalone Node service and yt-dlp in `backend/`. The gateway validates video URLs, rejects cross-site browser requests, and limits imports to ten per minute per IP. The backend requires a shared token, allows two simultaneous downloads, and enforces 100 MiB / 20-minute limits and a four-minute processing timeout. Private, live, and otherwise unavailable videos return an error; uploaded files can still be cropped.
+The public editor lives in `public/`; `worker.mjs` handles `/api/youtube`; `cloudflare.mjs` connects the gateway to `backend/`. `public/vendor/` contains the ffmpeg JavaScript wrappers. The approximately 32 MB ffmpeg WebAssembly core loads from jsDelivr because it exceeds Cloudflare's 25 MiB static-asset limit.
 
-Production runs entirely on Cloudflare: static assets, the Worker gateway, and one `basic` Container that sleeps after 60 seconds of inactivity. `wrangler.jsonc` pins the backend image by digest in Cloudflare's registry. No Google Cloud service is needed. A first import may take longer while the container starts.
-
-Set a random token of at least 24 characters with `wrangler secret put BACKEND_TOKEN`. The Worker passes the secret into the container; it must never appear in browser code or Git. `npm run deploy` deploys the frontend, gateway, and container configuration together. When changing `backend/server.js` or its Dockerfile, build and push a new image with `wrangler containers build -p -t ringtone-cropper-api ./backend` (requires Docker), then update the image digest in `wrangler.jsonc` before deploying. Frontend-only updates reuse the pinned image.
-
-For local Worker development, put a development-only `BACKEND_TOKEN` in the ignored `.dev.vars` file and run `npm run dev` with Docker available. The separate local editor below requires no container. The gateway also supports `YOUTUBE_BACKEND_URL` when adapting it to an external backend.
+### Checks
 
 ```sh
 npm run check
 npm test
 ```
 
-Tests cover gateway routing, token authentication, download limits, concurrent requests, cancellation, temporary-file cleanup, audio fidelity, and exports. Real YouTube access must also be checked after backend deployment because YouTube may challenge cloud IP addresses.
+Tests cover gateway routing, URL validation, authentication, download limits, concurrency, cancellation, temporary-file cleanup, and local audio exports. Check a real YouTube import after changing the backend: YouTube can challenge cloud IP addresses even when automated checks pass.
 
-## Local editor with YouTube import
+### Deploy to Cloudflare
 
-The [local editor](local/README.md) adds a **YouTube link / Upload audio file** dropdown, file drag-and-drop, waveform selection, and preview with fades. It downloads YouTube's best available audio stream and preserves uploaded originals. Exports use 320 kb/s AAC for M4R, 320 kb/s MP3, or lossless WAV and save to this computer's Downloads folder.
+Production uses Cloudflare static assets, a Worker gateway, and one `basic` Container that sleeps after 60 seconds of inactivity. The container image is pinned by digest in `wrangler.jsonc`. A first import may take longer while it starts.
 
-Install Node.js 22 or later, FFmpeg (including ffprobe), and yt-dlp, then run:
+Set a random production secret and deploy:
 
 ```sh
-brew install node ffmpeg yt-dlp  # macOS prerequisites
+wrangler secret put BACKEND_TOKEN
+npm run deploy
+```
+
+The secret must contain at least 24 characters. It is passed to the backend by the Worker; never place it in browser code or commit it. A new deployment on your own account also needs your domain, container image reference, and Cloudflare account configuration in `wrangler.jsonc`.
+
+When changing the backend, build and push its image with Docker available:
+
+```sh
+wrangler containers build -p -t ringtone-cropper-api ./backend
+```
+
+Update the image digest in `wrangler.jsonc`, then deploy. Frontend-only updates reuse the pinned image. The gateway also supports `YOUTUBE_BACKEND_URL` when adapting the project to an external backend.
+
+The gateway allows ten import attempts per minute per IP. The backend allows two simultaneous downloads and enforces the source-size/duration limits and a four-minute processing timeout. Private, live, restricted, or unavailable videos can fail to import; local-file cropping remains available.
+
+### Separate local editor
+
+The [local editor](local/README.md) runs Node, FFmpeg, and yt-dlp on your computer and saves exports to Downloads. It is useful without Docker or hosted infrastructure.
+
+Install Node.js 22 or later, FFmpeg (including ffprobe), and yt-dlp. On macOS:
+
+```sh
+brew install node ffmpeg yt-dlp
 npm run local
 ```
 
-Open http://localhost:3005. No npm dependency install is needed for the local editor. Imports and audio processing run on your computer using Node, FFmpeg, and yt-dlp. This version lives in `local/`; the public editor lives in `public/` and uses the hosted backend described above.
+Open [localhost:3005](http://localhost:3005). This editor lives in `local/` and does not require an npm dependency install. Its setup and export options are documented separately.
 
-To check the local editor:
+## Built by Apoorv Darshan
 
-```sh
-npm --prefix local run check
-npm --prefix local test
-```
+[X · @apoorvdarshan](https://x.com/apoorvdarshan) · [LinkedIn](https://www.linkedin.com/in/apoorvdarshan/) · [Instagram · @apoorvcodes](https://www.instagram.com/apoorvcodes/) · [GitHub · @apoorvdarshan](https://github.com/apoorvdarshan)
+
+Ideas, bugs, or feedback? [Open a GitHub issue](https://github.com/apoorvdarshan/ringtone-cropper/issues). Please keep private audio and personal information out of public issues.

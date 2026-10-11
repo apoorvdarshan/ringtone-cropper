@@ -3,186 +3,102 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Ringtone Cropper: make an iPhone ringtone from any song</title>
-<meta name="description" content="Make a ringtone from a YouTube link or an audio file. Crop up to 40 seconds and save high-quality .m4r, .m4a, .mp3 or lossless .wav audio.">
-<meta property="og:title" content="Ringtone Cropper">
-<meta property="og:description" content="Make an iPhone ringtone from any song, right in your browser.">
-<meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7.5'/><g fill='%23fff'><rect x='5' y='13' width='2' height='6' rx='1'/><rect x='9' y='11' width='2' height='10' rx='1'/><rect x='13' y='9' width='2' height='14' rx='1'/><rect x='17' y='7' width='2' height='18' rx='1'/><rect x='21' y='10' width='2' height='12' rx='1'/><rect x='25' y='12' width='2' height='8' rx='1'/></g><rect x='11' y='5' width='14' height='22' rx='2.5' fill='none' stroke='%23FFCC00' stroke-width='2'/></svg>">
+<title>Ringtone Cropper — Android &amp; iPhone ringtones</title>
+<meta name="description" content="Make your own Android or iPhone ringtone from a YouTube link or audio file. Start with 30 seconds, fine-tune your clip, and download high-quality MP3, M4A, M4R or WAV.">
+<meta property="og:title" content="Ringtone Cropper — Your sound. Your ringtone.">
+<meta property="og:description" content="Your favorite audio, trimmed for Android or iPhone. Choose a link or a file and make it yours.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://ringtone.apoorvdarshan.com">
+<meta name="theme-color" content="#F2F2F7">
+<link rel="canonical" href="https://ringtone.apoorvdarshan.com/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23FFCC00'/%3E%3Cpath d='M9 13v6m7-11v16m7-12v8' stroke='%23202024' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600;650;700;750;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+<a class="skip-link" href="#workspace">Skip to editor</a>
 <header class="top">
-  <a class="brand" href="/">
-    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7.5"/><g fill="#fff"><rect x="5" y="13" width="2" height="6" rx="1"/><rect x="9" y="11" width="2" height="10" rx="1"/><rect x="13" y="9" width="2" height="14" rx="1"/><rect x="17" y="7" width="2" height="18" rx="1"/><rect x="21" y="10" width="2" height="12" rx="1"/><rect x="25" y="12" width="2" height="8" rx="1"/></g><rect x="11" y="5" width="14" height="22" rx="2.5" fill="none" stroke="#FFCC00" stroke-width="2"/></svg>
-    Ringtone Cropper
+  <a class="brand" href="/" aria-label="Ringtone Cropper home">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9"/><path d="M9 13v6m7-11v16m7-12v8"/></svg>
+    <span>Ringtone Cropper</span>
   </a>
-  <a class="gh" href="https://github.com/apoorvdarshan/ringtone-cropper">GitHub</a>
+  <nav aria-label="Main navigation"><a class="nav-link" href="#install">How to use</a><a class="nav-link nav-github" href="https://github.com/apoorvdarshan/ringtone-cropper">GitHub <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></a></nav>
 </header>
 
 <main>
   <section class="intro">
-    <h1>Make a ringtone from any&nbsp;song.</h1>
-    <p>Start with a YouTube link or your own audio. Pick the part you want, up to 40 seconds, and save a high-quality ringtone for your phone.</p>
+    <h1>Your sound. <span>Your ringtone.</span></h1>
+    <p>Turn a YouTube link or audio file into a ringtone for Android or iPhone.</p>
   </section>
 
-  <section class="source-picker" id="sourcePicker" aria-label="Choose audio source">
-    <div class="source-heading">
-      <label for="audioSource">Audio source</label>
-      <select id="audioSource">
-        <option value="youtube">YouTube link</option>
-        <option value="upload">Upload file</option>
-      </select>
-    </div>
-    <form id="youtubeForm" class="youtube-form">
-      <label class="sr-only" for="youtubeUrl">YouTube video link</label>
-      <input id="youtubeUrl" type="url" placeholder="Paste a YouTube video link" inputmode="url" autocomplete="off" spellcheck="false" required aria-describedby="sourceHelp">
-      <button type="submit" id="importYoutube">Get audio</button>
-    </form>
-    <div id="uploadPanel" class="upload-panel" hidden>
-      <button type="button" id="uploadFile">Choose a file</button>
-      <p>Or drop an audio or video file onto the editor.</p>
-    </div>
-    <p class="source-help" id="sourceHelp">Best available YouTube audio, with no extra conversion before cropping. Up to 20 minutes and 100 MB.</p>
-    <p class="source-status" id="sourceStatus" role="status" aria-live="polite"></p>
-  </section>
-
-  <section id="stage" class="stage is-empty" aria-label="Clip editor">
-    <div class="stage-top">
-      <p class="song" id="fname">No song chosen</p>
-      <button class="swap" id="swap" type="button" hidden>Choose another song</button>
-    </div>
-
-    <div class="readout" aria-live="off">
-      <p class="range" id="range">0:00.0 – 0:29.9</p>
-      <p class="meta" id="meta">29.9 seconds</p>
-    </div>
-
-    <div class="wrap" id="wrap">
-      <div class="track" id="track">
-        <canvas id="wave" aria-hidden="true"></canvas>
-        <div id="sel" role="slider" tabindex="0" aria-label="Clip position" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" hidden>
-          <span class="grip l" data-grip="l" aria-hidden="true"></span>
-          <span class="grip r" data-grip="r" aria-hidden="true"></span>
+  <div class="workspace" id="workspace">
+    <div class="workspace-main">
+      <section class="source-picker" id="sourcePicker" aria-labelledby="sourceTitle">
+        <div class="source-heading">
+          <h2 id="sourceTitle">Choose your audio</h2>
+          <label class="sr-only" for="audioSource">Audio source</label>
+          <select id="audioSource"><option value="youtube">YouTube link</option><option value="upload">Upload audio</option></select>
         </div>
-        <div id="head" hidden></div>
-      </div>
-      <div class="drop" id="drop">
-        <button class="drop-btn" id="choose" type="button">Add a YouTube link</button>
-        <span class="drop-hint" id="dropHint">or drop your own audio or video file here</span>
-      </div>
-      <input type="file" id="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.aac,.flac,.ogg,.opus,.webm,.mov,.mp4" hidden>
-      <p class="busy" id="busy" role="status" hidden></p>
-    </div>
-    <div class="scale" aria-hidden="true"><span>0:00</span><span id="total"></span></div>
-
-    <div class="transport" id="transport">
-      <button id="play" class="play" aria-label="Play clip" disabled>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-play" d="M8 5.6v12.8a1 1 0 0 0 1.52.85l10.2-6.4a1 1 0 0 0 0-1.7L9.52 4.75A1 1 0 0 0 8 5.6z"/><rect class="i-stop" x="6.5" y="6.5" width="11" height="11" rx="2"/></svg>
-      </button>
-      <div class="seg" id="presets" role="group" aria-label="Clip length">
-        <button data-d="15" aria-pressed="false" disabled>15 s</button>
-        <button data-d="29.9" aria-pressed="true" disabled>29.9 s</button>
-        <button data-d="40" aria-pressed="false" disabled>40 s</button>
-      </div>
-      <div class="tools">
-        <div class="nudge" role="group" aria-label="Move the clip">
-          <button data-n="-0.1" aria-label="Move clip 0.1 seconds earlier" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6 8.5 12l6 6"/></svg></button>
-          <button data-n="0.1" aria-label="Move clip 0.1 seconds later" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 6 6 6-6 6"/></svg></button>
+        <form id="youtubeForm" class="youtube-form">
+          <label class="sr-only" for="youtubeUrl">YouTube video link</label>
+          <input id="youtubeUrl" type="url" placeholder="Paste a YouTube link" inputmode="url" autocomplete="off" spellcheck="false" required aria-describedby="sourceHelp">
+          <button type="submit" id="importYoutube" class="button-dark">Import audio</button>
+        </form>
+        <div id="uploadPanel" class="upload-panel" hidden>
+          <button type="button" id="uploadFile" class="button-dark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m-5 5 5-5 5 5M4 16v4h16v-4"/></svg>Choose a file</button>
+          <span>Or drag an audio or video file here.</span>
         </div>
-        <button id="loop" class="loop" aria-pressed="false" aria-label="Repeat preview" title="Repeat preview" disabled>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11V9.5A3.5 3.5 0 0 1 7.5 6H18m-3-3 3 3-3 3M20 13v1.5a3.5 3.5 0 0 1-3.5 3.5H6m3 3-3-3 3-3"/></svg>
-        </button>
-      </div>
+        <p class="source-help" id="sourceHelp">Best available audio. Up to 20 minutes and 100 MB.</p>
+        <p class="source-status" id="sourceStatus" role="status" aria-live="polite"></p>
+      </section>
+
+      <section id="stage" class="stage is-empty" aria-labelledby="trimTitle">
+        <h2 id="trimTitle">Trim your favorite part</h2>
+        <div class="stage-top"><p class="song" id="fname">No audio selected</p><button class="swap" id="swap" type="button" hidden>Change audio</button></div>
+        <p class="meta" id="meta">Your 30-second clip starts here.</p>
+        <div class="waveform-shell">
+          <div class="wrap" id="wrap">
+            <div class="track" id="track">
+              <canvas id="wave" aria-hidden="true"></canvas>
+              <div id="sel" role="slider" tabindex="-1" aria-label="Clip position" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" hidden><span class="grip l" data-grip="l" aria-hidden="true"></span><span class="grip r" data-grip="r" aria-hidden="true"></span></div>
+              <div id="head" hidden></div>
+            </div>
+            <div class="drop" id="drop"><button class="drop-btn" id="choose" type="button">Add a YouTube link</button><span class="drop-hint">or drop an audio file here</span></div>
+            <input type="file" id="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.aac,.flac,.ogg,.opus,.webm,.mov,.mp4" hidden>
+            <p class="busy" id="busy" role="status" hidden></p>
+          </div>
+          <div class="scale" aria-hidden="true"><span>0:00</span><span id="total">—</span></div>
+        </div>
+        <div class="transport" id="transport">
+          <div class="preview-control"><button id="play" class="play" aria-label="Play clip" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-play" d="M8 5.6v12.8a1 1 0 0 0 1.52.85l10.2-6.4a1 1 0 0 0 0-1.7L9.52 4.75A1 1 0 0 0 8 5.6z"/><rect class="i-stop" x="6.5" y="6.5" width="11" height="11" rx="2"/></svg></button><div><span class="preview-label">Preview selection</span><p class="range" id="range">0:00.0 – 0:30.0</p></div></div>
+          <div class="preset-control"><span class="mobile-preset-label">Clip length</span><div class="seg presets" id="presets" role="group" aria-label="Clip length"><button data-d="15" aria-pressed="false" disabled>15s</button><button data-d="30" aria-pressed="true" disabled>30s</button><button data-d="40" aria-pressed="false" disabled>40s</button></div></div>
+          <div class="tools"><div class="nudge" role="group" aria-label="Move the clip"><button data-n="-0.1" aria-label="Move clip 0.1 seconds earlier" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 7-5 5 5 5"/></svg></button><button data-n="0.1" aria-label="Move clip 0.1 seconds later" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 7 5 5-5 5"/></svg></button></div><button id="loop" class="loop" aria-pressed="false" aria-label="Repeat preview" title="Repeat preview" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11V9a3 3 0 0 1 3-3h12m-3-3 3 3-3 3M20 13v2a3 3 0 0 1-3 3H5m3-3-3 3 3 3"/></svg></button></div>
+        </div>
+        <div class="time-fields"><label for="startTime">Start <span>(s)</span><input id="startTime" type="number" value="0" min="0" step="0.1" inputmode="decimal" disabled></label><label for="endTime">End <span>(s)</span><input id="endTime" type="number" value="30" min="1" step="0.1" inputmode="decimal" disabled></label><div class="length-field"><span>Length</span><output id="lengthDisplay" for="startTime endTime">30.0 s</output></div></div>
+        <p class="hint">Drag the handles or enter a time.<span class="keys"> Use arrow keys to nudge, space to play.</span></p>
+      </section>
     </div>
-  </section>
 
-  <p class="hint">Drag the yellow frame to move it, or drag its ends to change the length. It starts on the loudest stretch of the song, which is usually the chorus.<span class="keys"> Arrow keys move it by 0.1&nbsp;s (<kbd>Shift</kbd> for 1&nbsp;s) and <kbd>Space</kbd> plays.</span></p>
-
-  <div class="panels is-locked" id="editor">
-    <section class="group">
-      <h2 class="group-h">Sound</h2>
-      <div class="list">
-        <label class="row"><span>Fade in</span><span class="switch"><input type="checkbox" id="fadeIn" checked><i></i></span></label>
-        <label class="row"><span>Fade out</span><span class="switch"><input type="checkbox" id="fadeOut" checked><i></i></span></label>
-        <label class="row"><span>Even out volume</span><span class="switch"><input type="checkbox" id="norm"><i></i></span></label>
-      </div>
-      <p class="foot">Fades ease the first half second in and the last second and a half out. Even out volume brings a very quiet or very loud song to a normal phone level.</p>
-    </section>
-
-    <section class="group">
-      <h2 class="group-h">Save</h2>
-      <button class="save-main dl" data-f="m4r" disabled><span class="lbl">Save ringtone</span><span class="ext">.m4r</span></button>
-      <div class="others">
-        <span>Other formats</span>
-        <button class="dl" data-f="m4a" disabled>.m4a</button>
-        <button class="dl" data-f="mp3" disabled>.mp3</button>
-        <button class="dl" data-f="wav" disabled>.wav</button>
-      </div>
-      <p class="foot save-quality">320 kb/s AAC or MP3. WAV adds no lossy compression. Quality depends on the original audio.</p>
-      <div class="progress" id="progress" hidden><i></i></div>
-      <p class="status" id="status" role="status" aria-live="polite"></p>
-    </section>
+    <aside class="export-sidebar" id="editor" aria-labelledby="outputTitle">
+      <h2 id="outputTitle">Make it yours</h2>
+      <div class="field-group"><span class="field-label" id="phoneLabel">Your phone</span><div class="device-selector" role="group" aria-labelledby="phoneLabel"><button id="deviceAndroid" data-device="android" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2"/><path d="M10 18.5h4"/></svg>Android</button><button id="deviceIphone" data-device="iphone" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10 5h4m-3 13.5h2"/></svg>iPhone</button></div></div>
+      <div class="field-group"><label for="outputFormat" class="field-label">Format</label><select id="outputFormat"><option value="mp3">MP3 · Android</option><option value="m4a">M4A · iPhone / GarageBand</option><option value="m4r">M4R · iPhone / computer</option><option value="wav">WAV · Lossless audio</option></select></div>
+      <div class="sound-controls"><label class="row" for="fadeIn"><span>Fade in</span><span class="switch"><input type="checkbox" id="fadeIn" checked disabled><i></i></span></label><label class="row" for="fadeOut"><span>Fade out</span><span class="switch"><input type="checkbox" id="fadeOut" checked disabled><i></i></span></label><label class="row" for="norm"><span>Normalize volume</span><span class="switch"><input type="checkbox" id="norm" disabled><i></i></span></label></div>
+      <div class="download-section"><div class="length-summary"><span>Clip length</span><strong id="clipLength">30 seconds</strong></div><button id="saveRingtone" class="save-main dl" data-f="mp3" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 20h14"/></svg><span class="lbl">Download ringtone</span><span class="ext sr-only">.mp3</span></button><p class="quality-note" id="formatNote">MP3 · 320 kb/s</p><p class="device-help" id="deviceHelp">Save the MP3, then choose it in your phone’s ringtone settings.</p><div class="progress" id="progress" hidden><i></i></div><p class="status" id="status" role="status" aria-live="polite"></p></div>
+      <p class="privacy-note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/></svg>Your edits stay in your browser.</p>
+    </aside>
   </div>
 
-  <section class="install" id="install">
-    <h2>Add it to your iPhone</h2>
-    <div class="seg light" role="tablist" aria-label="Your computer">
-      <button role="tab" id="tab-mac" aria-controls="p-mac" aria-selected="true">With a Mac</button>
-      <button role="tab" id="tab-ios" aria-controls="p-ios" aria-selected="false" tabindex="-1">iPhone only</button>
-      <button role="tab" id="tab-win" aria-controls="p-win" aria-selected="false" tabindex="-1">With Windows</button>
-    </div>
-
-    <div class="install-body">
-      <div class="steps">
-        <ol role="tabpanel" id="p-mac" aria-labelledby="tab-mac">
-          <li>Save the ringtone as <b>.m4r</b>.</li>
-          <li>Connect your iPhone with a cable and select it in the Finder sidebar.</li>
-          <li>Drag the .m4r file onto the iPhone window. It copies over straight away.</li>
-          <li>On your iPhone, open Settings › Sounds &amp; Haptics › Ringtone and tap it.</li>
-        </ol>
-        <ol role="tabpanel" id="p-ios" aria-labelledby="tab-ios" hidden>
-          <li>Save it as <b>.m4a</b>. Safari puts it in the Files app, under Downloads.</li>
-          <li>Open GarageBand, start an Audio Recorder project and switch to the tracks view.</li>
-          <li>Tap the loop icon, choose Files, and drag your .m4a onto the timeline.</li>
-          <li>In My Songs, touch and hold the project, then tap Share › Ringtone › Export.</li>
-          <li>Tap “Use sound as…” and choose Standard Ringtone.</li>
-        </ol>
-        <ol role="tabpanel" id="p-win" aria-labelledby="tab-win" hidden>
-          <li>Save the ringtone as <b>.m4r</b>.</li>
-          <li>Open the Apple Devices app (or iTunes) and connect your iPhone.</li>
-          <li>Drag the .m4r onto your iPhone in the sidebar.</li>
-          <li>On your iPhone, open Settings › Sounds &amp; Haptics › Ringtone and tap it.</li>
-        </ol>
-        <p class="foot">Ringtones can be up to 40 seconds. Text tones and alerts stop at 30, so 29.9&nbsp;s works for both.</p>
-      </div>
-
-      <figure class="tones">
-        <div class="tones-nav" aria-hidden="true"><span class="back"><svg viewBox="0 0 24 24"><path d="M15 5.5 8.5 12l6.5 6.5"/></svg>Sounds &amp; Haptics</span></div>
-        <p class="tones-title" aria-hidden="true">Ringtone</p>
-        <p class="tones-h" aria-hidden="true">Ringtones</p>
-        <ul class="list" aria-hidden="true">
-          <li class="mine"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span id="toneName">Your song (ringtone)</span></li>
-          <li>Reflection (Default)</li>
-          <li>Apex</li>
-          <li>Beacon</li>
-          <li>Bulletin</li>
-          <li>By The Seaside</li>
-        </ul>
-        <figcaption>Once it’s on your phone, it sits at the top of Settings › Sounds &amp; Haptics › Ringtone.</figcaption>
-      </figure>
-    </div>
+  <section class="install" id="install" aria-labelledby="installTitle">
+    <div class="install-heading"><h2 id="installTitle">On your phone, in a few steps.</h2><div class="seg guide-tabs" role="tablist" aria-label="Phone setup guide"><button role="tab" id="tab-android" aria-controls="p-android" aria-selected="true">Android</button><button role="tab" id="tab-ios" aria-controls="p-ios" aria-selected="false" tabindex="-1">iPhone</button></div></div>
+    <div id="p-android" role="tabpanel" aria-labelledby="tab-android"><ol class="steps"><li><div><h3>Download your ringtone</h3><p>Choose Android and save your clip as an MP3.</p></div></li><li><div><h3>Open your audio file</h3><p>In Files by Google, open Audio and play your downloaded clip.</p></div></li><li><div><h3>Make it your ringtone</h3><p>Tap More → Set as ringtone. Allow settings access if prompted.</p></div></li></ol><p class="guide-note">Settings vary by phone. You can also look for “Add ringtone” in your sound settings. <a href="https://support.google.com/files/answer/10018943?hl=en" target="_blank" rel="noopener noreferrer">Google’s guide <span aria-hidden="true">↗</span></a></p></div>
+    <div id="p-ios" role="tabpanel" aria-labelledby="tab-ios" hidden><ol class="steps"><li><div><h3>Save your 30-second clip</h3><p>Choose iPhone and download the M4A to Files. M4R is also available for computer workflows.</p></div></li><li><div><h3>Open it in GarageBand</h3><p>Open Audio Recorder → Tracks → Loops → Files. Set the song section to Automatic, then drag in your clip.</p></div></li><li><div><h3>Set your new ringtone</h3><p>In My Songs, share the project as a Ringtone, export, then choose “Use sound as”.</p></div></li></ol><p class="guide-note">GarageBand shortens clips longer than 30 seconds. <a href="https://support.apple.com/en-us/120692" target="_blank" rel="noopener noreferrer">Apple’s guide <span aria-hidden="true">↗</span></a></p></div>
   </section>
 </main>
 
-<footer class="bottom">
-  <p>Your uploaded files stay in this browser. YouTube audio is extracted on our server; cropping and saving run in your browser with <a href="https://github.com/ffmpegwasm/ffmpeg.wasm">ffmpeg.wasm</a>. Only use audio you have the rights to.</p>
-  <p><a href="https://github.com/apoorvdarshan/ringtone-cropper">Source on GitHub</a><span aria-hidden="true">  </span><a href="https://apoorvdarshan.com">Made by Apoorv Darshan</a></p>
-</footer>
+<footer class="bottom"><div class="footer-inner"><div><p class="footer-tagline">Made for your kind of sound.</p><p class="byline">Built by <a href="https://apoorvdarshan.com">Apoorv Darshan</a>.</p></div><nav class="social-links" aria-label="Follow Apoorv"><span>Follow along</span><a href="https://x.com/apoorvdarshan" target="_blank" rel="noopener noreferrer">X</a><a href="https://www.linkedin.com/in/apoorvdarshan/" target="_blank" rel="noopener noreferrer">LinkedIn</a><a href="https://www.instagram.com/apoorvcodes/" target="_blank" rel="noopener noreferrer">Instagram</a><a href="https://github.com/apoorvdarshan" target="_blank" rel="noopener noreferrer">GitHub</a></nav></div><div class="footer-bottom"><p>Uploads stay on your device. YouTube imports use a server; all trimming happens in your browser.</p><nav class="footer-links" aria-label="Project and legal"><a href="https://github.com/apoorvdarshan/ringtone-cropper">Source code</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav></div><p class="use-note">Use audio you own or are authorized to download, and follow the source platform’s terms. Not affiliated with YouTube.</p></footer>
 <script type="module" src="/app.js"></script>
 </body>
 </html>
