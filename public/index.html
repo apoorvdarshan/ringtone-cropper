@@ -5,16 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Ringtone Cropper — Android &amp; iPhone ringtones</title>
 <meta name="description" content="Make your own Android or iPhone ringtone from a YouTube link or audio file. Start with 30 seconds, fine-tune your clip, and download high-quality MP3, M4A, M4R or WAV.">
-<meta property="og:title" content="Ringtone Cropper — Your sound. Your ringtone.">
+<meta property="og:title" content="Ringtone Cropper — Your sound, on repeat.">
 <meta property="og:description" content="Your favorite audio, trimmed for Android or iPhone. Choose a link or a file and make it yours.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://ringtone.apoorvdarshan.com">
-<meta name="theme-color" content="#F2F2F7">
+<meta name="theme-color" content="#f5f6f8">
+<script src="/theme.js"></script>
 <link rel="canonical" href="https://ringtone.apoorvdarshan.com/">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23FFCC00'/%3E%3Cpath d='M9 13v6m7-11v16m7-12v8' stroke='%23202024' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23D7F75B'/%3E%3Cpath d='M9 13v6m7-11v16m7-12v8' stroke='%23202024' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600;650;700;750;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;450;500;550;600;650;700;750;800&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -24,13 +25,13 @@
     <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9"/><path d="M9 13v6m7-11v16m7-12v8"/></svg>
     <span>Ringtone Cropper</span>
   </a>
-  <nav aria-label="Main navigation"><a class="nav-link" href="#install">How to use</a><a class="nav-link nav-github" href="https://github.com/apoorvdarshan/ringtone-cropper">GitHub <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></a></nav>
+  <nav aria-label="Main navigation"><a class="nav-link nav-help" href="#install">How to use</a><a class="nav-link nav-github" href="https://github.com/apoorvdarshan/ringtone-cropper">Source code <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></a><label class="theme-control"><span class="sr-only">Appearance</span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="13" rx="2"/><path d="M8 21h8m-4-5v5"/></svg><select data-theme-picker aria-label="Appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></nav>
 </header>
 
 <main>
   <section class="intro">
-    <h1>Your sound. <span>Your ringtone.</span></h1>
-    <p>Turn a YouTube link or audio file into a ringtone for Android or iPhone.</p>
+    <h1>Your sound, <span>on repeat.</span></h1>
+    <p>Turn a YouTube link or an audio file into a ringtone that sounds like you.</p>
   </section>
 
   <div class="workspace" id="workspace">
@@ -55,7 +56,7 @@
       </section>
 
       <section id="stage" class="stage is-empty" aria-labelledby="trimTitle">
-        <h2 id="trimTitle">Trim your favorite part</h2>
+        <h2 id="trimTitle">Find your favorite part</h2>
         <div class="stage-top"><p class="song" id="fname">No audio selected</p><button class="swap" id="swap" type="button" hidden>Change audio</button></div>
         <p class="meta" id="meta">Your 30-second clip starts here.</p>
         <div class="waveform-shell">
@@ -82,7 +83,7 @@
     </div>
 
     <aside class="export-sidebar" id="editor" aria-labelledby="outputTitle">
-      <h2 id="outputTitle">Make it yours</h2>
+      <h2 id="outputTitle">The finishing touches</h2>
       <div class="field-group"><span class="field-label" id="phoneLabel">Your phone</span><div class="device-selector" role="group" aria-labelledby="phoneLabel"><button id="deviceAndroid" data-device="android" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2"/><path d="M10 18.5h4"/></svg>Android</button><button id="deviceIphone" data-device="iphone" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10 5h4m-3 13.5h2"/></svg>iPhone</button></div></div>
       <div class="field-group"><label for="outputFormat" class="field-label">Format</label><select id="outputFormat"><option value="mp3">MP3 · Android</option><option value="m4a">M4A · iPhone / GarageBand</option><option value="m4r">M4R · iPhone / computer</option><option value="wav">WAV · Lossless audio</option></select></div>
       <div class="sound-controls"><label class="row" for="fadeIn"><span>Fade in</span><span class="switch"><input type="checkbox" id="fadeIn" checked disabled><i></i></span></label><label class="row" for="fadeOut"><span>Fade out</span><span class="switch"><input type="checkbox" id="fadeOut" checked disabled><i></i></span></label><label class="row" for="norm"><span>Normalize volume</span><span class="switch"><input type="checkbox" id="norm" disabled><i></i></span></label></div>
@@ -92,7 +93,7 @@
   </div>
 
   <section class="install" id="install" aria-labelledby="installTitle">
-    <div class="install-heading"><h2 id="installTitle">On your phone, in a few steps.</h2><div class="seg guide-tabs" role="tablist" aria-label="Phone setup guide"><button role="tab" id="tab-android" aria-controls="p-android" aria-selected="true">Android</button><button role="tab" id="tab-ios" aria-controls="p-ios" aria-selected="false" tabindex="-1">iPhone</button></div></div>
+    <div class="install-heading"><h2 id="installTitle">Make it ring.</h2><div class="seg guide-tabs" role="tablist" aria-label="Phone setup guide"><button role="tab" id="tab-android" aria-controls="p-android" aria-selected="true">Android</button><button role="tab" id="tab-ios" aria-controls="p-ios" aria-selected="false" tabindex="-1">iPhone</button></div></div>
     <div id="p-android" role="tabpanel" aria-labelledby="tab-android"><ol class="steps"><li><div><h3>Download your ringtone</h3><p>Choose Android and save your clip as an MP3.</p></div></li><li><div><h3>Open your audio file</h3><p>In Files by Google, open Audio and play your downloaded clip.</p></div></li><li><div><h3>Make it your ringtone</h3><p>Tap More → Set as ringtone. Allow settings access if prompted.</p></div></li></ol><p class="guide-note">Settings vary by phone. You can also look for “Add ringtone” in your sound settings. <a href="https://support.google.com/files/answer/10018943?hl=en" target="_blank" rel="noopener noreferrer">Google’s guide <span aria-hidden="true">↗</span></a></p></div>
     <div id="p-ios" role="tabpanel" aria-labelledby="tab-ios" hidden><ol class="steps"><li><div><h3>Save your 30-second clip</h3><p>Choose iPhone and download the M4A to Files. M4R is also available for computer workflows.</p></div></li><li><div><h3>Open it in GarageBand</h3><p>Open Audio Recorder → Tracks → Loops → Files. Set the song section to Automatic, then drag in your clip.</p></div></li><li><div><h3>Set your new ringtone</h3><p>In My Songs, share the project as a Ringtone, export, then choose “Use sound as”.</p></div></li></ol><p class="guide-note">GarageBand shortens clips longer than 30 seconds. <a href="https://support.apple.com/en-us/120692" target="_blank" rel="noopener noreferrer">Apple’s guide <span aria-hidden="true">↗</span></a></p></div>
   </section>

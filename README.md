@@ -14,6 +14,8 @@ Make high-quality ringtones for **Android and iPhone** from an audio file or a Y
 
 The editor starts on the loudest stretch of the track as a useful first suggestion. Drag the waveform selection, resize its ends, or use the arrow keys to move it precisely. Repeat preview, fade in/out, and optional volume normalization help finish the clip.
 
+Choose **Light**, **Dark**, or **System** appearance. System is the default and follows your device's setting; your choice is remembered locally in your browser.
+
 ## Audio quality
 
 | Export | Best for | Encoding |

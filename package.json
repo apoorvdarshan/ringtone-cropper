@@ -7,7 +7,7 @@
     "deploy": "wrangler deploy",
     "local": "node local/server.js",
     "test": "node --test worker.test.mjs backend/server.test.js local/server.test.js selection.test.mjs",
-    "check": "node --check cloudflare.mjs && node --check worker.mjs && node --check backend/server.js && node --check local/server.js && node --check local/app.js && node --check public/selection.mjs && node --input-type=module --check < public/app.js"
+    "check": "node --check cloudflare.mjs && node --check worker.mjs && node --check backend/server.js && node --check local/server.js && node --check local/app.js && node --check public/theme.js && node --check public/selection.mjs && node --input-type=module --check < public/app.js"
   },
   "license": "ISC",
   "type": "commonjs",
