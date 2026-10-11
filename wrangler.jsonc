@@ -1,6 +1,19 @@
 {
   "name": "ringtone-cropper",
+  "main": "cloudflare.mjs",
   "compatibility_date": "2026-10-01",
-  "assets": { "directory": "./public" },
+  "compatibility_flags": ["nodejs_compat"],
+  "containers": [{
+    "class_name": "YouTubeContainer",
+    "image": "registry.cloudflare.com/9e5adbe3da178e02dbb5b3c27ac1c761/ringtone-cropper-api@sha256:0225d1755a9e360aebda79e48f9b119643880b1ae73d54856cc3ccab0ac2571b",
+    "max_instances": 1,
+    "instance_type": "basic"
+  }],
+  "durable_objects": {
+    "bindings": [{ "name": "YOUTUBE_CONTAINER", "class_name": "YouTubeContainer" }]
+  },
+  "exports": { "YouTubeContainer": { "type": "durable-object", "storage": "sqlite" } },
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
+  "ratelimits": [{ "name": "IMPORT_RATE_LIMITER", "namespace_id": "46172409", "simple": { "limit": 10, "period": 60 } }],
   "routes": [{ "pattern": "ringtone.apoorvdarshan.com", "custom_domain": true }]
 }

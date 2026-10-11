@@ -5,11 +5,14 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "local": "node local/server.js"
+    "local": "node local/server.js",
+    "test": "node --test worker.test.mjs backend/server.test.js local/server.test.js",
+    "check": "node --check cloudflare.mjs && node --check worker.mjs && node --check backend/server.js && node --check local/server.js && node --check local/app.js && node --input-type=module --check < public/app.js"
   },
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@cloudflare/containers": "0.3.7",
     "@ffmpeg/core": "^0.12.10",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2"

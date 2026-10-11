@@ -4,6 +4,7 @@ import { fetchFile } from "/vendor/util/index.js";
 const CORE = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm";
 const CORE_WASM_BYTES = 32.1e6; // uncompressed ffmpeg-core.wasm, for the download progress label
 const MIN_LEN = 1, MAX_LEN = 40;
+const MAX_SOURCE_BYTES = 100 * 1024 * 1024, MAX_SOURCE_SECONDS = 20 * 60;
 const $ = (id) => document.getElementById(id);
 
 const stage = $("stage"), track = $("track"), canvas = $("wave"), sel = $("sel"), head = $("head");
@@ -18,6 +19,8 @@ let clipStart = 0, clipLen = 29.9;
 let peaks = null, ghostPeaks = null, grow = 1;
 let actx = null, source = null, playStartedAt = 0, playFrom = 0, playPos = null, raf = 0, loop = false;
 let ffmpeg = null, ffmpegLoading = null, onEncoderBytes = null, onEncoderLog = null, exporting = false;
+let importing = false;
+const sourceSelect = $("audioSource"), sourceStatus = $("sourceStatus"), youtubeUrl = $("youtubeUrl");
 
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 const round1 = (v) => Math.round(v * 10) / 10;
@@ -66,34 +69,47 @@ function loadFFmpeg() {
 }
 
 // Each opened file gets its own name in ffmpeg's filesystem, so a new song never reuses the old one's data.
-async function ensureInput(ff) {
-  if (!(await ff.listDir("/")).some((n) => n.name === fsName)) await ff.writeFile(fsName, await fetchFile(file));
+async function ensureInput(ff, inputName = fsName, inputFile = file) {
+  if (!(await ff.listDir("/")).some((n) => n.name === inputName)) await ff.writeFile(inputName, await fetchFile(inputFile));
 }
 
 // ---------- opening a file ----------
 async function openFile(f) {
-  if (!f || exporting) return;
-  stop();
-  if (ffmpeg?.loaded && fsName) ffmpeg.deleteFile(fsName).catch(() => {});
-  file = f;
-  fsName = `src${++fileCount}${ext(f.name)}`;
-  buffer = null; duration = 0; peaks = null;
-  sel.hidden = true;
-  setStatus("");
+  if (!f.size) throw new Error("This file is empty. Choose an audio or video file with sound.");
+  if (f.size > MAX_SOURCE_BYTES) throw new Error("Choose a file smaller than 100 MB.");
+  const nextName = `src${++fileCount}${ext(f.name)}`;
+  let nextBuffer;
   showBusy(`Reading “${f.name}”…`);
   if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
   try {
-    buffer = await actx.decodeAudioData(await f.arrayBuffer());
-  } catch {
-    // The browser can't decode this one (some video containers): convert it with ffmpeg first.
-    showBusy("Converting this file. The first time, that means downloading a 32 MB encoder…");
-    const ff = await loadFFmpeg();
-    await ensureInput(ff);
-    await ff.exec(["-i", fsName, "-vn", "-ac", "2", "-ar", "44100", "decoded.wav"]);
-    const data = await ff.readFile("decoded.wav");
-    await ff.deleteFile("decoded.wav");
-    buffer = await actx.decodeAudioData(data.buffer);
+    try {
+      nextBuffer = await actx.decodeAudioData(await f.arrayBuffer());
+    } catch {
+      // Decode unsupported containers for preview without reducing their sample rate or precision.
+      showBusy("Preparing audio for preview. The first time, this downloads a 32 MB encoder…");
+      const ff = await loadFFmpeg();
+      await ensureInput(ff, nextName, f);
+      try {
+        const code = await ff.exec(["-y", "-i", nextName, "-t", String(MAX_SOURCE_SECONDS + 1), "-vn", "-map", "0:a:0", "-c:a", "pcm_f32le", "decoded.wav"]);
+        if (code !== 0) throw new Error("This file couldn’t be opened. Try an MP3, M4A, WAV or a video with sound.");
+        const data = await ff.readFile("decoded.wav");
+        nextBuffer = await actx.decodeAudioData(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength));
+      } finally {
+        await ff.deleteFile("decoded.wav").catch(() => {});
+      }
+    }
+    if (!Number.isFinite(nextBuffer.duration) || nextBuffer.duration < MIN_LEN) throw new Error("Choose audio that is at least one second long.");
+    if (nextBuffer.duration > MAX_SOURCE_SECONDS) throw new Error("Choose audio that is 20 minutes or shorter.");
+  } catch (e) {
+    if (ffmpeg?.loaded) await ffmpeg.deleteFile(nextName).catch(() => {});
+    throw e;
   }
+
+  // Commit the new source only after it opens successfully, preserving the previous clip on errors.
+  if (ffmpeg?.loaded && fsName) await ffmpeg.deleteFile(fsName).catch(() => {});
+  file = f;
+  fsName = nextName;
+  buffer = nextBuffer;
   duration = buffer.duration;
   clipLen = clamp(clipLen, Math.min(MIN_LEN, duration), Math.min(MAX_LEN, duration));
   clipStart = loudestStart(clipLen);
@@ -105,9 +121,6 @@ async function openFile(f) {
   editor.classList.remove("is-locked");
   $("swap").hidden = false;
   sel.hidden = false;
-  document.querySelectorAll("#transport button, .dl").forEach((b) => (b.disabled = false));
-  busyEl.hidden = true;
-
   computePeaks();
   update();
   growIn();
@@ -119,37 +132,126 @@ function showBusy(msg) {
   busyEl.hidden = false;
 }
 
-function openFailed(e) {
-  console.error(e);
-  busyEl.hidden = true;
-  if (!buffer) {
-    file = null;
-    $("fname").textContent = "No song chosen";
-    stage.classList.add("is-empty");
-    editor.classList.add("is-locked");
-    $("swap").hidden = true;
-    sel.hidden = true;
-    draw();
+function setSourceStatus(message, cls = "") {
+  sourceStatus.textContent = message;
+  sourceStatus.className = "source-status " + cls;
+}
+
+function syncControls() {
+  const busy = importing || exporting;
+  document.querySelectorAll("#sourcePicker input, #sourcePicker select, #sourcePicker button, #swap, #choose, #file")
+    .forEach((el) => (el.disabled = busy));
+  document.querySelectorAll("#transport button, .dl, #editor input")
+    .forEach((el) => (el.disabled = busy || !buffer));
+  editor.classList.toggle("is-locked", busy || !buffer);
+  sel.tabIndex = busy || !buffer ? -1 : 0;
+  stage.setAttribute("aria-busy", String(importing));
+  $("youtubeForm").setAttribute("aria-busy", String(importing && sourceSelect.value === "youtube"));
+}
+
+async function importAudio(getFile, message) {
+  if (importing || exporting) return;
+  importing = true;
+  stop();
+  syncControls();
+  setStatus("");
+  setSourceStatus(message);
+  showBusy(message);
+  try {
+    const nextFile = await getFile();
+    await openFile(nextFile);
+    setSourceStatus(`“${nextFile.name}” is ready. Choose the part you want below.`, "ok");
+  } catch (e) {
+    setSourceStatus(e?.message || "Couldn’t open that audio. Please try another file or link.", "err");
+  } finally {
+    importing = false;
+    busyEl.hidden = true;
+    syncControls();
   }
-  setStatus("That file couldn’t be opened. Try an mp3, m4a, wav or a video with sound.", "err");
-  stage.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+
+function updateSource() {
+  const youtube = sourceSelect.value === "youtube";
+  $("youtubeForm").hidden = !youtube;
+  $("uploadPanel").hidden = youtube;
+  $("choose").textContent = youtube ? "Add a YouTube link" : "Choose a song";
+  $("sourceHelp").textContent = youtube
+    ? "Best available YouTube audio, with no extra conversion before cropping. Up to 20 minutes and 100 MB."
+    : "Your file stays in this browser. Audio and video files up to 20 minutes and 100 MB.";
+}
+sourceSelect.onchange = () => { updateSource(); setSourceStatus(""); };
+
+function chooseSource() {
+  if (importing || exporting) return;
+  if (sourceSelect.value === "upload") fileEl.click();
+  else {
+    $("sourcePicker").scrollIntoView({ block: "nearest", behavior: reduceMotion.matches ? "instant" : "smooth" });
+    youtubeUrl.focus({ preventScroll: true });
+  }
 }
 
 const fileEl = $("file");
-fileEl.onchange = () => { const f = fileEl.files[0]; fileEl.value = ""; if (f) openFile(f).catch(openFailed); };
-$("drop").onclick = () => fileEl.click();
-$("swap").onclick = () => fileEl.click();
+const importFile = (f) => {
+  if (!f || importing || exporting) return;
+  sourceSelect.value = "upload";
+  updateSource();
+  return importAudio(() => f, `Opening “${f.name}”…`);
+};
+fileEl.onchange = () => { const f = fileEl.files[0]; fileEl.value = ""; importFile(f); };
+$("drop").onclick = chooseSource;
+$("swap").onclick = chooseSource;
+$("uploadFile").onclick = () => { if (!importing && !exporting) fileEl.click(); };
+const decodedHeader = (response, name) => {
+  const value = response.headers.get(name);
+  if (!value) return "";
+  try { return decodeURIComponent(value); } catch { return value; }
+};
+$("youtubeForm").onsubmit = (e) => {
+  e.preventDefault();
+  const url = youtubeUrl.value.trim();
+  if (!url || importing || exporting) return;
+  importAudio(async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000);
+    try {
+      const response = await fetch("/api/youtube", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }), signal: controller.signal,
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || `Couldn’t get the audio (HTTP ${response.status}). Please try again or upload a file.`);
+      }
+      if (Number(response.headers.get("Content-Length")) > MAX_SOURCE_BYTES) throw new Error("That audio is larger than 100 MB. Try a shorter video.");
+      setSourceStatus("Downloading the original audio to your browser…");
+      showBusy("Downloading audio…");
+      const blob = await response.blob();
+      const name = decodedHeader(response, "X-Audio-Filename") || `${decodedHeader(response, "X-Audio-Title") || "YouTube audio"}.webm`;
+      return new File([blob], name, { type: blob.type });
+    } catch (error) {
+      if (error.name === "AbortError") throw new Error("That video took too long to load. Try a shorter video or upload an audio file.");
+      if (error instanceof TypeError) throw new Error("Couldn’t connect to the audio service. Check your connection and try again.");
+      throw error;
+    } finally { clearTimeout(timeout); }
+  }, "Getting the best available audio from YouTube. This can take a few minutes…");
+};
 let dragDepth = 0;
-window.addEventListener("dragenter", (e) => { e.preventDefault(); dragDepth++; stage.classList.add("over"); });
-window.addEventListener("dragover", (e) => e.preventDefault());
+window.addEventListener("dragenter", (e) => {
+  if (!e.dataTransfer.types.includes("Files")) return;
+  e.preventDefault();
+  if (!importing && !exporting) { dragDepth++; stage.classList.add("over"); }
+});
+window.addEventListener("dragover", (e) => { if (e.dataTransfer.types.includes("Files")) e.preventDefault(); });
 window.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; stage.classList.remove("over"); } });
 window.addEventListener("drop", (e) => {
   e.preventDefault();
   dragDepth = 0;
   stage.classList.remove("over");
   const f = e.dataTransfer.files[0];
-  if (f) openFile(f).catch(openFailed);
+  importFile(f);
 });
+updateSource();
+syncControls();
 
 // Starting point: the loudest stretch of the clip's length, which is usually the chorus.
 function loudestStart(len) {
@@ -288,6 +390,7 @@ function update() {
 }
 
 function moveBy(delta) {
+  if (importing || exporting || !buffer) return;
   clipStart += delta;
   update();
   if (source) play();
@@ -310,7 +413,7 @@ const timeAt = (clientX) => {
   return clamp((clientX - r.left) / r.width, 0, 1) * duration;
 };
 track.addEventListener("pointerdown", (e) => {
-  if (!duration || e.button > 0) return;
+  if (!duration || importing || exporting || e.button > 0) return;
   const t = timeAt(e.clientX);
   const grip = e.target.closest(".grip")?.dataset.grip;
   if (grip) drag = { mode: grip, end: clipStart + clipLen };
@@ -341,7 +444,7 @@ track.addEventListener("pointerup", endDrag);
 track.addEventListener("pointercancel", endDrag);
 
 document.addEventListener("keydown", (e) => {
-  if (!buffer || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (!buffer || importing || exporting || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.target.closest("input, button, a, label, select, textarea")) return;
   if (e.code === "Space") { e.preventDefault(); source ? stop() : play(); }
   else if (e.code === "ArrowLeft" || e.code === "ArrowRight") {
@@ -353,6 +456,7 @@ document.addEventListener("keydown", (e) => {
 
 // ---------- preview ----------
 function play() {
+  if (!buffer || importing || exporting) return;
   stop(true);
   actx.resume();
   const len = clipLen, now = actx.currentTime;
@@ -396,16 +500,17 @@ for (const id of ["fadeIn", "fadeOut"]) $(id).addEventListener("change", () => s
 
 // ---------- saving ----------
 const FORMATS = {
-  m4r: { args: ["-c:a", "aac", "-b:a", "256k", "-f", "ipod"], mime: "audio/x-m4r" },
-  m4a: { args: ["-c:a", "aac", "-b:a", "256k", "-f", "ipod"], mime: "audio/mp4" },
-  mp3: { args: ["-c:a", "libmp3lame", "-q:a", "0"], mime: "audio/mpeg" },
-  wav: { args: ["-c:a", "pcm_s16le"], mime: "audio/wav" },
+  m4r: { args: ["-c:a", "aac", "-b:a", "320k", "-f", "ipod"], mime: "audio/x-m4r" },
+  m4a: { args: ["-c:a", "aac", "-b:a", "320k", "-f", "ipod"], mime: "audio/mp4" },
+  mp3: { args: ["-c:a", "libmp3lame", "-b:a", "320k"], mime: "audio/mpeg" },
+  wav: { args: ["-c:a", "pcm_f32le"], mime: "audio/wav" },
 };
 
 async function exportAs(key, btn) {
-  if (!file || exporting) return;
+  if (!file || importing || exporting) return;
   exporting = true;
-  exportButtons.forEach((b) => (b.disabled = true));
+  stop();
+  syncControls();
   btn.setAttribute("aria-busy", "true");
   const label = btn.querySelector(".lbl") || btn, original = label.textContent;
   label.textContent = "Saving…";
@@ -429,6 +534,8 @@ async function exportAs(key, btn) {
     if ($("norm").checked) filters.push("loudnorm=I=-14:TP=-1:LRA=11");
     if ($("fadeIn").checked) filters.push(`afade=t=in:st=0:d=${Math.min(0.5, len / 4)}`);
     if ($("fadeOut").checked) { const d = Math.min(1.5, len / 4); filters.push(`afade=t=out:st=${(len - d).toFixed(2)}:d=${d}`); }
+    // MP3 needs a supported sample rate for 320 kb/s; preserve 44.1/48 kHz sources.
+    if (key !== "wav") filters.push("aformat=sample_rates=44100|48000");
 
     onEncoderLog = (msg) => {
       const m = /time=(\d+):(\d+):(\d+(?:\.\d+)?)/.exec(msg);
@@ -438,7 +545,8 @@ async function exportAs(key, btn) {
       setStatus(`Encoding ${Math.round(p * 100)}%`);
     };
     const out = "out." + key;
-    const args = ["-y", "-ss", start.toFixed(2), "-t", len.toFixed(2), "-i", fsName, "-vn", "-map_metadata", "-1", "-ac", "2", "-ar", "44100"];
+    const args = ["-y", "-ss", start.toFixed(2), "-t", len.toFixed(2), "-i", fsName, "-vn", "-map", "0:a:0", "-map_metadata", "-1"];
+    if (key !== "wav") args.push("-ac", "2");
     if (filters.length) args.push("-af", filters.join(","));
     args.push(...FORMATS[key].args, out);
 
@@ -447,7 +555,7 @@ async function exportAs(key, btn) {
     const data = await ff.readFile(out);
     await ff.deleteFile(out);
 
-    const blob = new Blob([data.buffer], { type: FORMATS[key].mime });
+    const blob = new Blob([data], { type: FORMATS[key].mime });
     const name = `${toneName(file.name)} (ringtone).${key}`;
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -472,7 +580,7 @@ async function exportAs(key, btn) {
     exporting = false;
     label.textContent = original;
     btn.removeAttribute("aria-busy");
-    exportButtons.forEach((b) => (b.disabled = false));
+    syncControls();
     setTimeout(() => { if (!exporting) progressEl.hidden = true; }, 1200);
   }
 }

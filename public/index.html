@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Ringtone Cropper: make an iPhone ringtone from any song</title>
-<meta name="description" content="Pick the part of a song you want, up to 40 seconds, and save it as an iPhone ringtone (.m4r). Also saves .m4a, .mp3 and .wav. Runs in your browser, so nothing is uploaded.">
+<meta name="description" content="Make a ringtone from a YouTube link or an audio file. Crop up to 40 seconds and save high-quality .m4r, .m4a, .mp3 or lossless .wav audio.">
 <meta property="og:title" content="Ringtone Cropper">
 <meta property="og:description" content="Make an iPhone ringtone from any song, right in your browser.">
 <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
@@ -27,7 +27,28 @@
 <main>
   <section class="intro">
     <h1>Make a ringtone from any&nbsp;song.</h1>
-    <p>Pick the part you want, up to 40 seconds, and save it as an .m4r for your iPhone. It all happens in this tab, so your music is never uploaded.</p>
+    <p>Start with a YouTube link or your own audio. Pick the part you want, up to 40 seconds, and save a high-quality ringtone for your phone.</p>
+  </section>
+
+  <section class="source-picker" id="sourcePicker" aria-label="Choose audio source">
+    <div class="source-heading">
+      <label for="audioSource">Audio source</label>
+      <select id="audioSource">
+        <option value="youtube">YouTube link</option>
+        <option value="upload">Upload file</option>
+      </select>
+    </div>
+    <form id="youtubeForm" class="youtube-form">
+      <label class="sr-only" for="youtubeUrl">YouTube video link</label>
+      <input id="youtubeUrl" type="url" placeholder="Paste a YouTube video link" inputmode="url" autocomplete="off" spellcheck="false" required aria-describedby="sourceHelp">
+      <button type="submit" id="importYoutube">Get audio</button>
+    </form>
+    <div id="uploadPanel" class="upload-panel" hidden>
+      <button type="button" id="uploadFile">Choose a file</button>
+      <p>Or drop an audio or video file onto the editor.</p>
+    </div>
+    <p class="source-help" id="sourceHelp">Best available YouTube audio, with no extra conversion before cropping. Up to 20 minutes and 100 MB.</p>
+    <p class="source-status" id="sourceStatus" role="status" aria-live="polite"></p>
   </section>
 
   <section id="stage" class="stage is-empty" aria-label="Clip editor">
@@ -51,8 +72,8 @@
         <div id="head" hidden></div>
       </div>
       <div class="drop" id="drop">
-        <button class="drop-btn" id="choose" type="button">Choose a song</button>
-        <span class="drop-hint">or drop an audio or video file here</span>
+        <button class="drop-btn" id="choose" type="button">Add a YouTube link</button>
+        <span class="drop-hint" id="dropHint">or drop your own audio or video file here</span>
       </div>
       <input type="file" id="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.aac,.flac,.ogg,.opus,.webm,.mov,.mp4" hidden>
       <p class="busy" id="busy" role="status" hidden></p>
@@ -102,6 +123,7 @@
         <button class="dl" data-f="mp3" disabled>.mp3</button>
         <button class="dl" data-f="wav" disabled>.wav</button>
       </div>
+      <p class="foot save-quality">320 kb/s AAC or MP3. WAV adds no lossy compression. Quality depends on the original audio.</p>
       <div class="progress" id="progress" hidden><i></i></div>
       <p class="status" id="status" role="status" aria-live="polite"></p>
     </section>
@@ -158,7 +180,7 @@
 </main>
 
 <footer class="bottom">
-  <p>Runs in your browser with <a href="https://github.com/ffmpegwasm/ffmpeg.wasm">ffmpeg.wasm</a>. Only use audio you have the rights to.</p>
+  <p>Your uploaded files stay in this browser. YouTube audio is extracted on our server; cropping and saving run in your browser with <a href="https://github.com/ffmpegwasm/ffmpeg.wasm">ffmpeg.wasm</a>. Only use audio you have the rights to.</p>
   <p><a href="https://github.com/apoorvdarshan/ringtone-cropper">Source on GitHub</a><span aria-hidden="true">  </span><a href="https://apoorvdarshan.com">Made by Apoorv Darshan</a></p>
 </footer>
 <script type="module" src="/app.js"></script>
