@@ -1,145 +1,386 @@
 {
   "aspect": "vertical",
-  "fps": 30,
-  "transition": 0.3,
+  "fps": 60,
+  "transition": 0.2,
+  "sound_design": true,
   "audio": {
     "file": "exports/demo-ringtone-iphone.m4a",
-    "start": 0,
-    "delay": 12.4,
-    "volume": 0.8
+    "events": [
+      {
+        "at": 0,
+        "start": 0,
+        "duration": 1.55,
+        "volume": 0.58,
+        "fade_in": 0.045,
+        "fade_out": 0.32
+      },
+      {
+        "at": 18.23,
+        "start": 0,
+        "duration": 12.62,
+        "volume": 0.58,
+        "fade_in": 0.35,
+        "fade_out": 1.5
+      }
+    ]
   },
   "shots": [
     {
-      "kind": "title",
-      "duration": 2.8,
-      "caption": "Your sound.",
-      "accent": "On repeat.",
-      "subcaption": "A ringtone that sounds like you."
+      "layout": "mobile",
+      "entrance": "none",
+      "file": "raw/vertical-v2/preview.mp4",
+      "start": 1.43,
+      "duration": 1.6,
+      "crop": [
+        28,
+        450,
+        804,
+        530
+      ],
+      "box": [
+        72,
+        640,
+        828,
+        546
+      ],
+      "caption": "That part.\nYour ringtone.",
+      "caption_size": 96,
+      "eyebrow": "YOUR SOUND / ON REPEAT",
+      "subcaption": "",
+      "footer_note": "Keep the bit you love.",
+      "zoom_from": 1.16,
+      "zoom_to": 1.025,
+      "pan": [
+        0.5,
+        0.35,
+        0.5,
+        0.5
+      ],
+      "transition": "fade"
     },
     {
-      "file": "raw/07-mobile-import.mp4",
-      "start": 0.3,
-      "duration": 3.7,
       "layout": "mobile",
-      "caption": "Start with a link.",
-      "subcaption": "Or bring your own audio file.",
+      "entrance": "none",
+      "file": "raw/07-mobile-import.mp4",
+      "start": 0.35,
+      "duration": 3.2,
+      "crop": [
+        28,
+        623,
+        804,
+        500
+      ],
+      "box": [
+        72,
+        645,
+        828,
+        514
+      ],
+      "caption": "Pick it.",
       "eyebrow": "01 / BRING YOUR SOUND",
-      "zoom": 0.035,
+      "subcaption": "Paste a link. Or upload your audio.",
+      "zoom_from": 1,
+      "zoom_to": 1.065,
       "pan": [
         0.5,
         0.5,
         0.5,
-        0.75
+        0.66
+      ],
+      "transition": "smoothup",
+      "callouts": [
+        {
+          "at": 2.4,
+          "x": 0.5,
+          "y": 0.774,
+          "radius": 42
+        }
       ]
     },
     {
-      "file": "raw/07-mobile-import.mp4",
-      "start": 8.5,
-      "duration": 2.5,
       "layout": "mobile",
-      "caption": "Your audio. Ready.",
-      "subcaption": "Best available source quality.",
-      "eyebrow": "01 / BRING YOUR SOUND",
-      "zoom": 0.035,
+      "entrance": "none",
+      "file": "raw/vertical-v2/trim.mp4",
+      "start": 0.6,
+      "duration": 3.5,
+      "crop": [
+        28,
+        450,
+        804,
+        850
+      ],
+      "box": [
+        72,
+        535,
+        828,
+        876
+      ],
+      "caption": "Trim it.",
+      "eyebrow": "02 / FIND YOUR MOMENT",
+      "subcaption": "Move to the part you love.",
+      "zoom_from": 1,
+      "zoom_to": 1.09,
       "pan": [
-        0.5,
-        0.5,
-        0.5,
-        0.75
-      ]
+        0.25,
+        0.25,
+        0.65,
+        0.15
+      ],
+      "transition": "smoothleft"
     },
     {
-      "file": "raw/05-mobile-editor.mp4",
-      "start": 12.4,
-      "duration": 4,
       "layout": "mobile",
-      "caption": "Find your favorite part.",
-      "subcaption": "30 seconds. Or make it your own.",
+      "entrance": "none",
+      "file": "raw/vertical-v2/trim.mp4",
+      "start": 4.7,
+      "duration": 3.6,
+      "crop": [
+        28,
+        450,
+        804,
+        850
+      ],
+      "box": [
+        72,
+        535,
+        828,
+        876
+      ],
+      "caption": "Fine-tune it.",
+      "caption_size": 104,
       "eyebrow": "02 / MAKE THE CUT",
-      "zoom": 0.06,
-      "crop": [
-        40,
-        250,
-        780,
-        1155
-      ],
-      "box": [
-        75,
-        430,
-        930,
-        1378
-      ],
+      "subcaption": "Drag the handles. Keep just enough.",
+      "zoom_from": 1.1,
+      "zoom_to": 1.02,
       "pan": [
+        0.66,
+        0.12,
         0.5,
-        0.5,
-        0.5,
-        0.25
+        0.6
+      ],
+      "transition": "fade",
+      "callouts": [
+        {
+          "at": 0.47,
+          "x": 0.621,
+          "y": 0.207,
+          "radius": 38
+        }
       ]
     },
     {
-      "file": "raw/05-mobile-editor.mp4",
-      "start": 17.5,
-      "duration": 5,
       "layout": "mobile",
-      "caption": "Give it a listen.",
-      "subcaption": "Preview before you download.",
-      "eyebrow": "03 / PRESS PLAY",
-      "zoom": 0.06,
+      "entrance": "none",
+      "file": "raw/vertical-v2/trim.mp4",
+      "start": 8.45,
+      "duration": 2.5,
       "crop": [
-        40,
-        250,
-        780,
-        1155
+        28,
+        450,
+        804,
+        850
       ],
       "box": [
-        75,
-        430,
-        930,
-        1378
+        72,
+        535,
+        828,
+        876
       ],
+      "caption": "Exactly 30s.",
+      "caption_size": 106,
+      "eyebrow": "02 / SET YOUR LENGTH",
+      "subcaption": "A preset. Or your own length.",
+      "zoom_from": 1.02,
+      "zoom_to": 1.075,
       "pan": [
         0.5,
+        0.45,
         0.5,
-        0.5,
-        0.25
+        0.85
+      ],
+      "transition": "smoothup",
+      "callouts": [
+        {
+          "at": 0.67,
+          "x": 0.5,
+          "y": 0.739,
+          "radius": 44
+        }
       ]
     },
     {
-      "file": "raw/06-mobile-export.mp4",
-      "start": 0.8,
-      "duration": 5.9,
       "layout": "mobile",
-      "caption": "Made for your phone.",
-      "subcaption": "Android + iPhone. A tap away.",
-      "eyebrow": "04 / TAKE IT WITH YOU",
-      "zoom": 0.04,
+      "entrance": "none",
+      "file": "raw/vertical-v2/fades.mp4",
+      "start": 0.4,
+      "duration": 4.15,
       "crop": [
-        40,
-        110,
-        780,
-        1495
+        28,
+        534,
+        804,
+        650
       ],
       "box": [
-        175,
-        430,
-        730,
-        1398
+        72,
+        550,
+        828,
+        670
       ],
+      "caption": "Smooth it.",
+      "eyebrow": "03 / THE FINISHING TOUCH",
+      "subcaption": "Fade in. Fade out. A softer landing.",
+      "zoom_from": 1.04,
+      "zoom_to": 1,
+      "pan": [
+        0.6,
+        0.2,
+        0.5,
+        0.5
+      ],
+      "transition": "smoothleft",
+      "ramp_at": 2.47,
+      "ramp_y": 1320,
+      "callouts": [
+        {
+          "at": 0.8,
+          "x": 0.877,
+          "y": 0.111,
+          "radius": 43
+        },
+        {
+          "at": 2.46,
+          "x": 0.877,
+          "y": 0.265,
+          "radius": 43
+        }
+      ]
+    },
+    {
+      "layout": "mobile",
+      "entrance": "none",
+      "file": "raw/vertical-v2/preview.mp4",
+      "start": 0.55,
+      "duration": 4.8,
+      "crop": [
+        28,
+        450,
+        804,
+        850
+      ],
+      "box": [
+        72,
+        535,
+        828,
+        876
+      ],
+      "caption": "Hear it.",
+      "eyebrow": "04 / PRESS PLAY",
+      "subcaption": "Your cut. Your sound.",
+      "zoom_from": 1,
+      "zoom_to": 1.095,
       "pan": [
         0.5,
+        0.45,
         0.5,
+        0.1
+      ],
+      "transition": "smoothright",
+      "callouts": [
+        {
+          "at": 0.88,
+          "x": 0.127,
+          "y": 0.52,
+          "radius": 41
+        }
+      ]
+    },
+    {
+      "layout": "mobile",
+      "entrance": "none",
+      "file": "raw/vertical-v2/download.mp4",
+      "start": 1,
+      "duration": 2.6,
+      "crop": [
+        28,
+        120,
+        804,
+        400
+      ],
+      "box": [
+        72,
+        650,
+        828,
+        412
+      ],
+      "caption": "Your phone.",
+      "caption_size": 106,
+      "eyebrow": "05 / MADE FOR YOU",
+      "subcaption": "Android + iPhone.",
+      "zoom_from": 1.06,
+      "zoom_to": 1,
+      "pan": [
+        0.7,
+        0.4,
         0.5,
-        0.35
+        0.5
+      ],
+      "transition": "smoothup",
+      "callouts": [
+        {
+          "at": 1.11,
+          "x": 0.685,
+          "y": 0.35,
+          "radius": 45
+        }
+      ]
+    },
+    {
+      "layout": "mobile",
+      "entrance": "none",
+      "file": "raw/vertical-v2/download.mp4",
+      "start": 3.9,
+      "duration": 3.5,
+      "crop": [
+        28,
+        904,
+        804,
+        520
+      ],
+      "box": [
+        72,
+        625,
+        828,
+        536
+      ],
+      "caption": "Make it ring.",
+      "caption_size": 106,
+      "eyebrow": "06 / TAKE IT WITH YOU",
+      "subcaption": "Download your finished ringtone.",
+      "zoom_from": 1,
+      "zoom_to": 1.04,
+      "pan": [
+        0.5,
+        0.4,
+        0.5,
+        0.7
+      ],
+      "transition": "smoothup",
+      "callouts": [
+        {
+          "at": 0.47,
+          "x": 0.5,
+          "y": 0.343,
+          "radius": 42
+        }
       ]
     },
     {
       "kind": "outro",
-      "duration": 4,
+      "duration": 3.2,
       "caption": "Make it ring.",
       "accent": "Make it yours.",
-      "subcaption": "Create yours in your browser.",
-      "credit": "Built by @apoorvdarshan"
+      "credit": "Built by @apoorvdarshan",
+      "transition": "fade"
     }
-  ],
-  "sound_design": true
+  ]
 }

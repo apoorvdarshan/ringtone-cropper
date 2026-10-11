@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 """Render a launch film from genuine browser recordings and an edit manifest.
 
-Usage: .venv/bin/python render.py edit.json --output exports/launch.mp4
+Usage: .venv/bin/python render.py edit-vertical.json --output exports/launch-vertical-v2.mp4
 
 Manifest paths are relative to the manifest. A shot is either ``title``,
 ``footage`` (default), or ``outro``. Footage accepts file, start, duration,
 speed, crop [x,y,w,h], box [x,y,w,h], layout (wide/focus/mobile), caption, subcaption,
 eyebrow, pan [start_x,start_y,end_x,end_y] (normalized 0–1), and zoom
-(default .065). Add aspect="vertical" for 1080x1920.
+(default .065), zoom_from/zoom_to for push or pull moves, callouts tied to
+real clicks, and directional transitions. The default aspect is vertical,
+1080x1920, with copy and controls inside social-platform safe areas.
 Top-level audio accepts {file, start, delay, volume, fade_in, fade_out}; start
 is the offset within the audio file, delay is its start time in the film.
+Alternatively, audio.events is a list of {at, start, duration, volume,
+fade_in, fade_out} for a teaser followed by a synchronized preview.
 The renderer never takes sound from
 browser recordings implicitly. ``sound_design: true`` adds original, subtle
 tonal and transition accents. ``--clean-output`` writes a version with only
@@ -159,14 +163,17 @@ def shot_graphic(shot, width, height, aspect, number, count, path):
     caption = shot.get("caption", "Make it yours.")
     sub = shot.get("subcaption", "")
     if vertical:
-        text(d, (margin, 94), eyebrow.upper(), 23, LIME, weight=600)
-        headline = wrap(d, caption, width-2*margin, 83, weight=650)
-        end = text(d, (margin, 151), headline, 83, weight=650, spacing=1.04)
+        text(d, (margin, 194), eyebrow.upper(), 22, LIME, weight=600)
+        headline_size = shot.get("caption_size", 112)
+        headline = wrap(d, caption, 828, headline_size, weight=650)
+        end = text(d, (margin, 251), headline, headline_size, weight=650, spacing=1.01)
         if sub:
-            sub = wrap(d, sub, width-2*margin, 31, weight=400)
-            text(d, (margin, end+23), sub, 31, MUTED, weight=400, spacing=1.2)
-        box = (210, 430, 660, 1428) if layout == "mobile" else (54, 480, 972, 1260)
-        text(d, (margin, height-57), "RINGTONE CROPPER", 20, MUTED, weight=550)
+            sub = wrap(d, sub, 828, 32, weight=400)
+            text(d, (margin, end+26), sub, 32, MUTED, weight=400, spacing=1.2)
+        box = (72, 510, 828, 1036)
+        text(d, (margin, 1606), "RINGTONE CROPPER", 19, MUTED, weight=550)
+        if shot.get("footer_note"):
+            text(d, (margin, 1485), shot["footer_note"], 29, MUTED, weight=400)
     elif layout in ("focus", "mobile"):
         logo(d, margin, 78, 46)
         text(d, (margin, 256), eyebrow.upper(), 22, LIME, weight=600)
@@ -190,12 +197,71 @@ def shot_graphic(shot, width, height, aspect, number, count, path):
 
     box = tuple(shot.get("box", box))
     # The real screen is rounded during compositing, without fake browser chrome.
+    progress_width = 828 if vertical else width-2*margin
+    progress_y = 1662 if vertical else height-18
     for i in range(count):
-        segw = (width-2*margin-(count-1)*8)/count
+        segw = (progress_width-(count-1)*8)/count
         left = margin+i*(segw+8)
-        d.rectangle((left, height-18, left+segw, height-15), fill=LIME if i < number else "#303238")
+        d.rectangle((left, progress_y, left+segw, progress_y+3), fill=LIME if i < number else "#303238")
     im.save(path)
     return box
+
+
+def motion_overlay(shot, base, box, fps, frames_dir):
+    """Animated editorial labels, real-click rings, and illustrative fade curve."""
+    frames_dir.mkdir(parents=True, exist_ok=True)
+    base = Image.open(base).convert("RGBA")
+    duration = float(shot["duration"])
+    x, y, bw, bh = box
+    z0 = float(shot.get("zoom_from", 1))
+    z1 = float(shot.get("zoom_to", 1+float(shot.get("zoom", .065))))
+    px0, py0, px1, py1 = shot.get("pan", [.5,.5,.5,.5])
+    for n in range(round(duration*fps)):
+        t = n/fps
+        frame = Image.new("RGBA", base.size)
+        progress = min(1, t/.46)
+        ease = 1-(1-progress)**3
+        shifted = base
+        if ease < 1:
+            shifted = base.copy()
+            shifted.putalpha(base.getchannel("A").point(lambda a: round(a*ease)))
+        frame.alpha_composite(shifted, (round(-38*(1-ease)), round(22*(1-ease))))
+        d = ImageDraw.Draw(frame)
+        # A small moving accent gives the caption a physical arrival.
+        accent_length = 118*(1-(1-min(1,t/.5))**3)
+        d.rounded_rectangle((72, 1570, 72+accent_length, 1576), 3, fill=LIME)
+        camera_ease = .5-.5*math.cos(math.pi*min(1,t/duration))
+        zoom = z0+(z1-z0)*camera_ease
+        px = px0+(px1-px0)*camera_ease
+        py = py0+(py1-py0)*camera_ease
+        for cue in shot.get("callouts", []):
+            at = float(cue["at"])
+            length = float(cue.get("duration", .62))
+            phase = (t-at)/length
+            if not 0 <= phase <= 1:
+                continue
+            cx = x+(float(cue["x"])*bw-(bw-bw/zoom)*px)*zoom
+            cy = y+(float(cue["y"])*bh-(bh-bh/zoom)*py)*zoom
+            radius = float(cue.get("radius", 42))*(.42+.90*phase)
+            alpha = round(225*(1-phase)**1.15)
+            d.ellipse((cx-radius,cy-radius,cx+radius,cy+radius), outline=(215,247,91,alpha), width=4)
+            if phase < .22:
+                d.ellipse((cx-5,cy-5,cx+5,cy+5), fill=(246,246,244,round(210*(1-phase/.22))))
+        if "ramp_at" in shot and t >= float(shot["ramp_at"]):
+            reveal = min(1, (t-float(shot["ramp_at"]))/0.6)
+            ry = int(shot.get("ramp_y", 1350))
+            pts = []
+            for i in range(max(2, round(121*reveal))):
+                p = i/120
+                h = min(1, p/.22, (1-p)/.22)
+                h = max(0, h)
+                h = h*h*(3-2*h)
+                pts.append((72+828*p, ry+92-80*h))
+            if len(pts)>1:
+                d.line(pts, fill=LIME, width=5, joint="curve")
+            text(d, (72, ry+121), "SOFT START", 21, MUTED, weight=500)
+            text(d, (719, ry+121), "CLEAN FINISH", 21, MUTED, weight=500)
+        frame.save(frames_dir / f"{n:04d}.png", compress_level=2)
 
 
 def card_animation(shot, width, height, aspect, fps, frames_dir):
@@ -203,6 +269,9 @@ def card_animation(shot, width, height, aspect, fps, frames_dir):
     frames_dir.mkdir(parents=True, exist_ok=True)
     vertical = aspect == "vertical"
     kind = shot.get("kind", "title")
+    if vertical and kind == "outro":
+        vertical_outro(shot, fps, frames_dir)
+        return
     margin = 72
     layers = []
 
@@ -262,6 +331,41 @@ def card_animation(shot, width, height, aspect, fps, frames_dir):
         canvas.convert("RGB").save(frames_dir / f"{frame:04d}.png", compress_level=3)
 
 
+def vertical_outro(shot, fps, frames_dir):
+    """Keep the complete CTA inside Shorts/Reels/Stories safe areas."""
+    layers = []
+    def add(delay, painter):
+        layer = Image.new("RGBA", (1080,1920))
+        painter(ImageDraw.Draw(layer))
+        layers.append((delay,layer))
+    add(0, lambda d:(logo(d,72,190,50),text(d,(140,200),"Ringtone Cropper",30)))
+    add(.02, lambda d:text(d,(72,370),shot.get("caption","Make it ring."),112,weight=650))
+    add(.12, lambda d:text(d,(72,508),shot.get("accent","Make it yours."),124,LIME,serif=True))
+    add(.24, lambda d:text(d,(76,700),"No app. Just your sound.",36,MUTED,weight=400))
+    url = shot.get("url","ringtone.apoorvdarshan.com")
+    def button(d):
+        d.rounded_rectangle((72,1138,900,1278),28,fill=LIME)
+        f=font(43,weight=600)
+        tw=d.textlength(url,font=f)
+        d.text((486-tw/2,1184),url,font=f,fill=BG,anchor="lt")
+    add(.36,button)
+    add(.48,lambda d:text(d,(72,1330),"ANDROID + IPHONE  ·  OPEN SOURCE",25,MUTED,weight=500))
+    add(.58,lambda d:text(d,(72,1470),shot.get("credit","Built by @apoorvdarshan"),25,MUTED,weight=400))
+    for n in range(round(float(shot["duration"])*fps)):
+        t=n/fps
+        frame=Image.new("RGBA",(1080,1920),BG)
+        for delay,item in layers:
+            p=min(1,max(0,(t-delay)/.45));ease=1-(1-p)**3
+            current=item
+            if ease<1:
+                current=item.copy();current.putalpha(item.getchannel("A").point(lambda a:round(a*ease)))
+            frame.alpha_composite(current,(0,round(42*(1-ease))))
+        signal=Image.new("RGBA",(1080,1920))
+        wave(ImageDraw.Draw(signal),72,866,828,130,51,190,phase=t*3.9)
+        frame.alpha_composite(signal)
+        frame.convert("RGB").save(frames_dir/f"{n:04d}.png",compress_level=3)
+
+
 def base_ffmpeg():
     return ["ffmpeg", "-y", "-hide_banner", "-loglevel", "warning", "-filter_complex_threads", "1"]
 
@@ -271,13 +375,13 @@ def encode_opts(crf=17):
 
 
 def render_shot(shot, idx, count, config, manifest_dir, cache, force=False):
-    aspect = config.get("aspect", "landscape")
+    aspect = config.get("aspect", "vertical")
     width, height = (1080, 1920) if aspect == "vertical" else (1920, 1080)
     fps = config.get("fps", 30)
     duration = float(shot["duration"])
     if duration <= .4:
         raise ValueError("Each shot must last more than 0.4 seconds.")
-    signature = json.dumps({"v": 6, "shot": shot, "aspect": aspect, "fps": fps, "idx": idx, "count": count}, sort_keys=True)
+    signature = json.dumps({"v": 9, "shot": shot, "aspect": aspect, "fps": fps, "idx": idx, "count": count}, sort_keys=True)
     digest = hashlib.sha256(signature.encode()).hexdigest()[:10]
     target = cache / f"{idx:02d}-{digest}.mp4"
     if target.exists() and not force:
@@ -313,15 +417,18 @@ def render_shot(shot, idx, count, config, manifest_dir, cache, force=False):
         filters += [f"scale={bw}:{bh}:force_original_aspect_ratio=decrease:flags=lanczos", f"pad={bw}:{bh}:(ow-iw)/2:(oh-ih)/2:color={BG}"]
     else:
         filters += [f"scale={bw}:{bh}:force_original_aspect_ratio=increase:flags=lanczos", f"crop={bw}:{bh}"]
-    zoom = float(shot.get("zoom", .065))
-    if zoom:
+    z0 = float(shot.get("zoom_from", 1))
+    z1 = float(shot.get("zoom_to", 1+float(shot.get("zoom", .065))))
+    if z0 < 1 or z1 < 1:
+        raise ValueError("Camera zoom values must be at least 1.")
+    if z0 != 1 or z1 != 1:
         nframes = max(1, round(duration*fps)-1)
         # Cosine ease has zero speed at both ends; no sharp digital punch.
         ease = f"(0.5-0.5*cos(PI*on/{nframes}))"
         px0, py0, px1, py1 = shot.get("pan", [.5, .5, .5, .5])
         xp = f"(iw-iw/zoom)*({px0}+({px1-px0})*{ease})"
         yp = f"(ih-ih/zoom)*({py0}+({py1-py0})*{ease})"
-        filters.append(f"zoompan=z='1+{zoom}*{ease}':x='{xp}':y='{yp}':d=1:s={bw}x{bh}:fps={fps}")
+        filters.append(f"zoompan=z='{z0}+({z1-z0})*{ease}':x='{xp}':y='{yp}':d=1:s={bw}x{bh}:fps={fps}")
     filters += [f"tpad=stop_mode=clone:stop_duration={duration}", f"trim=duration={duration}", "setsar=1", "format=rgba"]
     # Rounded alpha mask is a compositing treatment, not invented app UI.
     maskpath = GRAPHICS / f"mask-{bw}x{bh}.png"
@@ -329,16 +436,38 @@ def render_shot(shot, idx, count, config, manifest_dir, cache, force=False):
         mask = Image.new("L", (bw, bh), 0)
         ImageDraw.Draw(mask).rounded_rectangle((0, 0, bw-1, bh-1), 18, fill=255)
         mask.save(maskpath)
+    animated_overlay = aspect == "vertical"
+    if animated_overlay:
+        overlay_dir = GRAPHICS / f"{aspect}-{idx:02d}-{digest}-overlay"
+        motion_overlay(shot, overlay, box, fps, overlay_dir)
+        overlay_args = ["-framerate", str(fps), "-i", overlay_dir / "%04d.png"]
+        graphic_filter = "[2:v]format=rgba[graphics];"
+        graphic_position = "x=0:y=0"
+    else:
+        overlay_args = ["-loop", "1", "-framerate", str(fps), "-i", overlay]
+        graphic_filter = "[2:v]format=rgba,fade=t=in:d=0.35:alpha=1[graphics];"
+        graphic_position = "x=0:y='24*pow(1-min(t/0.48,1),3)'"
+    entrance = shot.get("entrance", "rise")
+    if entrance == "none":
+        frame_position = f"x={x}:y={y}"
+        frame_fade = ""
+    elif entrance in ("left", "right"):
+        offset = -86 if entrance == "left" else 86
+        frame_position = f"x='{x}+{offset}*pow(1-min(t/0.45,1),3)':y={y}"
+        frame_fade = ",fade=t=in:d=0.18:alpha=1"
+    else:
+        frame_position = f"x={x}:y='{y}+42*pow(1-min(t/0.45,1),3)'"
+        frame_fade = ",fade=t=in:d=0.18:alpha=1"
     fc = (
         f"[0:v]{','.join(filters)}[footage];"
-        f"[3:v]format=gray[mask];[footage][mask]alphamerge,fade=t=in:d=0.25:alpha=1[rounded];"
-        f"[1:v][rounded]overlay=x={x}:y='{y}+36*pow(1-min(t/0.6,1),3)':shortest=1[placed];"
-        f"[2:v]format=rgba,fade=t=in:d=0.35:alpha=1[graphics];"
-        f"[placed][graphics]overlay=x=0:y='24*pow(1-min(t/0.48,1),3)':shortest=1,format=yuv420p[v]"
+        f"[3:v]format=gray[mask];[footage][mask]alphamerge{frame_fade}[rounded];"
+        f"[1:v][rounded]overlay={frame_position}:shortest=1[placed];"
+        + graphic_filter +
+        f"[placed][graphics]overlay={graphic_position}:shortest=1,format=yuv420p[v]"
     )
     cmd = base_ffmpeg() + ["-ss", str(start), "-i", source,
         "-f", "lavfi", "-i", f"color=c={BG}:s={width}x{height}:r={fps}:d={duration}",
-        "-loop", "1", "-framerate", str(fps), "-i", overlay,
+        *overlay_args,
         "-loop", "1", "-framerate", str(fps), "-i", maskpath,
         "-filter_complex", fc, "-map", "[v]", "-t", str(duration), "-r", str(fps)] + encode_opts() + [target]
     run(cmd)
@@ -362,7 +491,10 @@ def join_shots(files, config, target, crf=16):
     elapsed = durations[0]
     for i in range(1, len(files)):
         output = f"x{i}"
-        fc.append(f"[{current}][v{i}]xfade=transition=fade:duration={transition}:offset={elapsed-transition}[{output}]")
+        effect = config["shots"][i].get("transition", "fade")
+        if effect not in {"fade","slideleft","slideright","slideup","slidedown","smoothleft","smoothright","smoothup","smoothdown","hblur","dissolve"}:
+            raise ValueError(f"Unsupported transition: {effect}")
+        fc.append(f"[{current}][v{i}]xfade=transition={effect}:duration={transition}:offset={elapsed-transition}[{output}]")
         elapsed += durations[i]-transition
         current = output
     cmd += ["-filter_complex", ";".join(fc), "-map", f"[{current}]", "-t", str(total), "-r", str(config.get("fps", 30))]
@@ -375,29 +507,30 @@ def make_sound_design(config, duration, target):
     """An original, quiet tonal intro and small edit accents; no stock audio."""
     rate = 48000
     samples = array("f", [0]) * round(duration*rate)
-    song_start = float(config.get("audio", {}).get("delay", duration))
     rng = random.Random(731)
-    for event, root in [(0, 220), (4.5, 174.614), (8.7, 196), (12.4, 220)]:
-        if event >= song_start-.2:
-            continue
-        length = min(3.5, song_start-event)
-        for n in range(round(length*rate)):
-            t = n/rate
-            env = min(1, t/.045)*math.exp(-t/1.15)
-            env *= min(1, max(0, (song_start-event-t)/.45))
-            tone = sum(math.sin(2*math.pi*root*ratio*t) for ratio in (1, 1.2, 1.5))
-            samples[round(event*rate)+n] += .019*env*tone
     elapsed = 0
     transition = float(config.get("transition", .3))
-    for shot in config["shots"]:
+    for idx, shot in enumerate(config["shots"]):
         event = max(0, elapsed)
-        length = min(.3, duration-event)
-        filtered = 0
-        for n in range(round(length*rate)):
-            t = n/rate
-            filtered = .84*filtered+.16*rng.uniform(-1, 1)
-            env = math.sin(math.pi*t/max(length, .001))**2
-            samples[round(event*rate)+n] += .027*env*filtered
+        if shot.get("transition", "fade") != "fade" and idx:
+            length = min(.26, duration-event)
+            filtered = 0
+            for n in range(round(length*rate)):
+                t = n/rate
+                filtered = .86*filtered+.14*rng.uniform(-1, 1)
+                env = math.sin(math.pi*t/max(length, .001))**2
+                samples[round(event*rate)+n] += .032*env*filtered
+        for cue in shot.get("callouts", []):
+            click = event+float(cue["at"])
+            length = min(.09, duration-click)
+            for n in range(max(0, round(length*rate))):
+                t=n/rate
+                envelope=min(1,t/.003)*math.exp(-t/.017)
+                samples[round(click*rate)+n] += .032*envelope*math.sin(2*math.pi*(760-900*t)*t)
+        if shot.get("kind") == "outro":
+            for n in range(round(min(.8,duration-event)*rate)):
+                t=n/rate;envelope=min(1,t/.012)*math.exp(-t/.21)
+                samples[round(event*rate)+n] += .009*envelope*(math.sin(2*math.pi*659.25*t)+math.sin(2*math.pi*987.77*t))
         elapsed += float(shot["duration"])-transition
     pcm = array("h")
     for value in samples:
@@ -411,6 +544,8 @@ def make_sound_design(config, duration, target):
 
 
 def mux_audio(silent, target, audio, manifest_dir, duration, effects=None):
+    if audio.get("events"):
+        return mux_audio_events(silent,target,audio,manifest_dir,duration,effects)
     track = (manifest_dir / audio["file"]).resolve()
     volume = float(audio.get("volume", .8))
     delay = float(audio.get("delay", 0))
@@ -434,6 +569,29 @@ def mux_audio(silent, target, audio, manifest_dir, duration, effects=None):
         "-t", str(duration), "-movflags", "+faststart", target])
 
 
+def mux_audio_events(silent, target, audio, manifest_dir, duration, effects=None):
+    """Separate opening teaser and one uninterrupted, accurately synced preview."""
+    cmd=base_ffmpeg()+["-i",silent]
+    filters=[];labels=[]
+    for i,event in enumerate(audio["events"],1):
+        file=(manifest_dir/event.get("file",audio["file"])).resolve()
+        at=float(event.get("at",0));length=min(float(event.get("duration",duration-at)),duration-at)
+        if not 0 <= at < duration or length<=0:
+            raise ValueError("Audio events must be inside the film.")
+        cmd += ["-ss",str(event.get("start",0)),"-i",file]
+        gain=float(event.get("volume",.58));fi=float(event.get("fade_in",.12));fo=float(event.get("fade_out",.35))
+        name=f"audio{i}"
+        filters.append(f"[{i}:a]atrim=duration={length},asetpts=PTS-STARTPTS,volume={gain},afade=t=in:d={fi},afade=t=out:st={max(0,length-fo)}:d={fo},adelay={round(at*1000)}:all=1,apad,atrim=duration={duration}[{name}]")
+        labels.append(f"[{name}]")
+    if effects:
+        idx=len(audio["events"])+1
+        cmd += ["-i",effects]
+        filters.append(f"[{idx}:a]apad,atrim=duration={duration}[effects]");labels.append("[effects]")
+    filters.append(f"{''.join(labels)}amix=inputs={len(labels)}:duration=longest:normalize=0,alimiter=limit=0.84:level=0:latency=1[mix]")
+    cmd += ["-filter_complex",";".join(filters),"-map","0:v:0","-map","[mix]","-c:v","copy","-c:a","aac","-b:a","256k","-ar","48000","-t",str(duration),"-movflags","+faststart",target]
+    run(cmd)
+
+
 def mux_effects(silent, effects, target, duration):
     run(base_ffmpeg() + ["-i", silent, "-i", effects, "-map", "0:v:0", "-map", "1:a:0",
         "-c:v", "copy", "-c:a", "aac", "-b:a", "256k", "-ar", "48000",
@@ -453,7 +611,7 @@ def main():
     config = json.loads(manifest.read_text())
     if not config.get("shots"):
         parser.error("Manifest needs at least one shot.")
-    cache = ROOT / "work" / "render" / config.get("aspect", "landscape")
+    cache = ROOT / "work" / "render" / config.get("aspect", "vertical")
     cache.mkdir(parents=True, exist_ok=True)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     clips = []
@@ -470,7 +628,7 @@ def main():
     duration = join_shots(clips, config, silent)
     effects = None
     if config.get("sound_design"):
-        effects = GRAPHICS / f"{config.get('aspect', 'landscape')}-original-sound-design.wav"
+        effects = GRAPHICS / f"{config.get('aspect', 'vertical')}-original-sound-design.wav"
         make_sound_design(config, duration, effects)
     if config.get("audio"):
         mux_audio(silent, args.output, config["audio"], manifest.parent, duration, effects)
@@ -484,7 +642,7 @@ def main():
             mux_effects(silent, effects, args.clean_output, duration)
         else:
             shutil.copyfile(silent, args.clean_output)
-    print(json.dumps({"output": str(args.output.resolve()), "duration": round(duration, 3), "audio": bool(config.get("audio")), "aspect": config.get("aspect", "landscape")}))
+    print(json.dumps({"output": str(args.output.resolve()), "duration": round(duration, 3), "audio": bool(config.get("audio")), "aspect": config.get("aspect", "vertical")}))
 
 
 if __name__ == "__main__":
